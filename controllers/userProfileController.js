@@ -170,5 +170,48 @@ module.exports = {
                 })
             }
         })
-    }
+    }, 
+
+    
+    createFlashSaleEvent: (req, res) => {
+        const data = req.body
+        const eventName = String(data.eventDate).split(' ')[0].replace(/-/g, '_')
+
+        var sqlQuery1 = `CREATE EVENT flash_sale_event_${eventName}
+        ON SCHEDULE AT '${data.eventDate}'
+        DO
+            UPDATE products SET is_flash_sale = 1, expired_flash_sale = '${data.eventDate}' + INTERVAL 1 DAY WHERE id IN (${data.products_id});`
+        
+        db.query(sqlQuery1, (err, resultQuery1) => {
+            try {
+                if(err) throw err
+
+                var sqlQuery2 = `CREATE EVENT flash_sale_event_ended_${eventName}
+                ON SCHEDULE AT '${data.eventDate}' + INTERVAL 1 DAY
+                DO
+                    UPDATE products SET is_flash_sale = 0, expired_flash_sale = null WHERE expired_flash_sale = '${data.eventDate}' + INTERVAL 1 DAY;`
+                
+                db.query(sqlQuery2, (err, resultQuery2) => {
+                    try {
+                        if(err) throw err
+
+                        res.send({
+                            error: false,
+                            message: 'Create Flash Sale Event Success'
+                        })
+                    } catch (error) {
+                        res.send({
+                            error: true,
+                            message : error.message
+                        })
+                    }
+                })
+            } catch (error) {
+                res.send({
+                    error: true,
+                    message : error.message
+                })
+            }
+        })
+    },
 }
