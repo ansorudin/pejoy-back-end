@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const LoggingAPI = require('./middleware/LoggingAPI');
 
+const landingPageRouter = require('./routers/landingPageRouter');
 const productRouter = require('./routers/productRouter');
 const userProfileRouter = require('./routers/userProfileRouter');
 
@@ -18,6 +19,8 @@ app.get('/', (req, res) => {
 app.use(LoggingAPI)
 // For Get Image
 app.use('/public', express.static('public'))
+// Router For Landing Page
+app.use('/', landingPageRouter)
 // Router For Products
 app.use('/products', productRouter)
 // Router For User Profile
