@@ -95,7 +95,7 @@ module.exports = {
     
                                             res.send({
                                                 error: false, 
-                                                message: 'Shipping Address Added Successfully',
+                                                message: 'Add Shipping Address Success',
                                                 data: resultSqlQuery3
                                             })
                                         } catch (error) {
@@ -152,15 +152,15 @@ module.exports = {
         })
     },
 
-    getAllProductsOnAdminDashboard: (req, res) => {
-        var sqlQuery = 'SELECT * FROM products'
+    getDiscountProducts: (req, res) => {
+        var sqlQuery = 'SELECT * FROM products WHERE discount > 0'
         db.query(sqlQuery, (err, result) => {
             try {
                 if(err) throw err
 
                 res.send({
                     error: false,
-                    message: 'Get All Products Success',
+                    message: 'Get Discount Products Success',
                     data: result
                 })
             } catch (error) {

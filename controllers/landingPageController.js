@@ -34,7 +34,7 @@ module.exports = {
         JOIN products p ON vp.products_id = p.id
         JOIN image_product ip ON vp.products_id = ip.products_id
         WHERE transaction_id IN
-        (SELECT transaction_id FROM status_transaction WHERE status_name_id = 3) GROUP BY products_id;`
+        (SELECT transaction_id FROM status_transaction WHERE status_name_id = 3) GROUP BY products_id ORDER BY total_sold DESC;`
         db.query(sqlQuery, (err, result) => {
             try {
                 if(err) throw err
