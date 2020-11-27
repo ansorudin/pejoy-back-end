@@ -76,7 +76,6 @@ const getProductByCategory = async(req, res) => {
     let filter = req.body
     
     let conditions = buildConditions(filter)
-    console.log(conditions.values)
 
     let getProductCategoryQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount,pr.rating, pr.id as review_id, p.is_flash_sale, group_concat(distinct(ip.url)) as url  ,p.name, c.category_name, c.id as category_id ,min(vp.price) as price, b.brands_name, b.id as brand_id from products p
     join variant_product vp on vp.products_id = p.id
@@ -87,8 +86,6 @@ const getProductByCategory = async(req, res) => {
     left join product_review pr on pr.products_id = p.id
     group by p.id
     having stock_all_gudang > 0 and ${conditions.where};`
-
-    console.log(getProductCategoryQuery)
 
     try {
         let filterCategory = await query(getProductCategoryQuery)
@@ -105,33 +102,6 @@ const getProductByCategory = async(req, res) => {
     }
 }
 
-const getProductByRating = async(req, res) => {
-    // Jumlah ratingnya berapa
-    let ratingCount = req.query.rating
-
-    let getProductRatingQuery = `select sum(s.stock_customer) as stock_all_gudang , p.discount,pr.rating, p.is_flash_sale, group_concat(distinct(ip.url)) as url  ,p.name, c.category_name, c.id as category_id ,min(vp.price) as price,  b.brands_name from products p
-    join variant_product vp on vp.products_id = p.id
-    join brands b on b.id = p.brands_id
-    join stock s on s.variant_product_id = vp.id
-    join category c on c.id = p.category_id
-    join image_product ip on ip.products_id = p.id
-    left join product_review pr on pr.products_id = p.id
-    group by p.id
-    having stock_all_gudang > 0 and pr.rating = ?;`
-
-    try {
-        let filterRating = await query(getProductRatingQuery, ratingCount)
-        res.send({
-            error : false,
-            filterRating
-        })
-    } catch (error) {
-        res.send({
-            error: true,
-            message : error.message
-        })
-    }
-}
 
 const getProductDetail = async(req, res) => {
     let id = req.params.id
@@ -184,7 +154,6 @@ module.exports = {
     getAllProduct,
     getFilter,
     getProductByCategory,
-    getProductByRating,
     getProductDetail
 
 }

@@ -5,8 +5,7 @@ const Router = require('express').Router()
 Router.get('/', getAllProduct)
 Router.get('/filter', getFilter)
 Router.get('/:id', getProductDetail)
-Router.get('/filter/category', getProductByCategory)
-Router.get('/filter/rating', getProductByRating)
+Router.post('/filter/category', getProductByCategory)
 
 
 module.exports = Router
