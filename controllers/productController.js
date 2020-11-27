@@ -1,3 +1,4 @@
+const categoryFilter = require('../helpers/filterCategory')
 const buildConditions = require('../helpers/multipleFilter')
 const { all } = require('../routers/productRouter')
 const query = require('./../database/mysqlAsync')
@@ -75,9 +76,9 @@ const getProductByCategory = async(req, res) => {
     // id Category
     let filter = req.body
     
-    let conditions = buildConditions(filter)
+    let conditions = categoryFilter(filter)
 
-    let getProductCategoryQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount,pr.rating, pr.id as review_id, p.is_flash_sale, group_concat(distinct(ip.url)) as url  ,p.name, c.category_name, c.id as category_id ,min(vp.price) as price, b.brands_name, b.id as brand_id from products p
+    let getProductCategoryQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount, pr.rating, pr.id as review_id, p.is_flash_sale, group_concat(distinct(ip.url)) as url  ,p.name, c.category_name, c.id as category_id ,min(vp.price) as price, b.brands_name, b.id as brand_id from products p
     join variant_product vp on vp.products_id = p.id
     join brands b on b.id = p.brands_id
     join stock s on s.variant_product_id = vp.id
@@ -89,6 +90,36 @@ const getProductByCategory = async(req, res) => {
 
     try {
         let filterCategory = await query(getProductCategoryQuery)
+
+        res.send({
+            error : false,
+            filterCategory
+        })
+    } catch (error) {
+        res.send({
+            error: true,
+            message : error.message
+        })
+    }
+}
+const getProductByMultipleCategory = async(req, res) => {
+    // id Category
+    let filter = req.body
+    
+    let conditions = buildConditions(filter)
+
+    let getProductMultipleCategoryQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount, pr.rating, pr.id as review_id, p.is_flash_sale, group_concat(distinct(ip.url)) as url  ,p.name, c.category_name, c.id as category_id ,min(vp.price) as price, b.brands_name, b.id as brand_id from products p
+    join variant_product vp on vp.products_id = p.id
+    join brands b on b.id = p.brands_id
+    join stock s on s.variant_product_id = vp.id
+    join category c on c.id = p.category_id
+    join image_product ip on ip.products_id = p.id
+    left join product_review pr on pr.products_id = p.id
+    group by p.id
+    having stock_all_gudang > 0 and ${conditions.where};`
+
+    try {
+        let filterCategory = await query(getProductMultipleCategoryQuery)
 
         res.send({
             error : false,
@@ -154,6 +185,7 @@ module.exports = {
     getAllProduct,
     getFilter,
     getProductByCategory,
-    getProductDetail
+    getProductDetail,
+    getProductByMultipleCategory
 
 }
