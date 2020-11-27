@@ -29,12 +29,12 @@ module.exports = {
     },
 
     getAllBestSellerProducts: (req, res) => {
-        var sqlQuery = `SELECT p.id, p.name, vp.products_id, vp.price, SUM(td.qty) AS total_sold, p.discount, ip.url FROM transaction_detail td
-        JOIN variant_product vp ON td.variant_product_id = vp.id
-        JOIN products p ON vp.products_id = p.id
-        JOIN image_product ip ON vp.products_id = ip.products_id
-        WHERE transaction_id IN
-        (SELECT transaction_id FROM status_transaction WHERE status_name_id = 3) GROUP BY products_id ORDER BY total_sold DESC;`
+        var sqlQuery = `SELECT p.name, MIN(vp.price) AS price, p.discount, SUM(DISTINCT td.qty) AS total_sold, ip.url FROM transaction_detail td
+        JOIN variant_product vp ON vp.id = td.variant_product_id
+        JOIN products p ON p.id = vp.products_id
+        JOIN image_product ip ON ip.products_id = p.id 
+        JOIN status_transaction st ON td.transaction_id = st.transaction_id
+        WHERE st.status_name_id = 3 GROUP BY p.id ORDER BY total_sold DESC;`
         db.query(sqlQuery, (err, result) => {
             try {
                 if(err) throw err
