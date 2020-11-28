@@ -2,6 +2,8 @@ const categoryFilter = require('../helpers/filterCategory')
 const buildConditions = require('../helpers/multipleFilter')
 const { all } = require('../routers/productRouter')
 const query = require('./../database/mysqlAsync')
+const db = require('./../database/mysql')
+const { default: Axios } = require('axios')
 
 const getAllProduct = async (req, res) => {
     let getAllProductQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount,pr.rating, p.is_flash_sale, group_concat(distinct(ip.url)) as url  ,p.name, c.category_name,c.id as category_id, min(vp.price) as price,  b.brands_name from products p
@@ -176,16 +178,105 @@ const getProductDetail = async(req, res) => {
             message : error.message
         })
     }
-
-
-
 }
+
+
+
+const getCart = async(req, res) => {
+
+    let users_id = req.dataToken.id
+
+    let cartQuery = `select sum(s.stock_customer) as stock, c.id, qty, price,(price * qty) as total_price, (price * (discount / 100)) as potongan,((price * (discount / 100)) * qty) as total_potongan , p.name, p.discount, p.is_flash_sale, b.brands_name, size, url from cart c
+    join variant_product vp on vp.id = c.variant_product_id
+    join products p on p.id = vp.products_id
+    join brands b on b.id = p.brands_id
+    join product_size ps on ps.id = vp.product_size_id
+    join image_product ip on ip.products_id = p.id
+    join stock s on s.variant_product_id = vp.id
+    where c.users_id = ?
+    group by c.id;`
+
+    try {
+        const cartData = await query(cartQuery, users_id)
+        res.send({
+            error : false,
+            cartData
+        })
+        
+    } catch (error) {
+        res.send({
+            error: true,
+            message : error.message
+        })
+    }
+}
+
+const getEstimatedOngkir = (req, res) => {
+    let data = req.body
+    let users_id = req.dataToken.id
+
+    db.query(`select id, longUser, latUser, province_id, city_id from shipping_address
+    where users_id = ${users_id} and is_main_address = 1`, (err, result) => {
+        try {
+            if(err) throw err
+            let dataUser = result[0]
+            db.query(`SELECT * , (3956 * 2 * ASIN(SQRT( POWER(SIN(( ${dataUser.latUser} - latGudang) *  pi()/180 / 2), 2) +COS( ${dataUser.latUser} * pi()/180) * COS(latGudang * pi()/180) * POWER(SIN(( ${dataUser.longUser} - longGudang) * pi()/180 / 2), 2) ))) as distance  
+            from gudang  
+            order by distance
+            limit 1;`, (err, gudang) => {
+                try {
+                    if(err) throw err
+                    let dataGudang = gudang[0]
+
+                    let query = {
+                        key : '65fba3749b9a6449d0dd13fb2aee7f62',
+                        origin: dataGudang.city_id, 
+                        destination: dataUser.city_id, 
+                        weight: data.weight, 
+                        courier: data.courier
+                    }
+                
+                    Axios.post('https://api.rajaongkir.com/starter/cost', query)
+                    .then((respone) => {
+                        res.send({
+                            error : false,
+                            dataOngkir : respone.data.rajaongkir.results,
+                            dataGudang : dataGudang,
+                            dataUser : dataUser
+                        })
+                    })
+                    .catch((err) => {
+                        console.log(err)
+                    })
+
+                } catch (error) {
+                    res.send({
+                        error: true,
+                        message : error.message
+                    })
+                }
+            })
+        } catch (error) {
+            res.send({
+                error: true,
+                message : error.message
+            })
+        }
+    })
+    
+}
+
 
 module.exports = {
     getAllProduct,
     getFilter,
     getProductByCategory,
     getProductDetail,
-    getProductByMultipleCategory
+    getProductByMultipleCategory,
+    getCart,
+    getEstimatedOngkir
 
 }
+
+
+    
