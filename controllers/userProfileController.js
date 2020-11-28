@@ -1,5 +1,6 @@
+const Axios = require('axios');
 const db = require('./../database/mysql');
-const query = require('./../database/mysqlAsync')
+const query = require('./../database/mysqlAsync');;
 const jwt = require('jsonwebtoken');
 
 module.exports = {
@@ -138,6 +139,34 @@ module.exports = {
                 message : error.message
             })
         }
+    },
+
+    getRajaOngkirProvince: (req, res) => {
+        Axios.get('https://api.rajaongkir.com/starter/province?key=598395fbbd5364b73d2c50d57df09682')
+        .then((response) => {
+            res.send({
+                error: false, 
+                message: 'Get Raja Ongkir Province Success',
+                data: response.data
+            })
+        })
+        .catch((err) => {
+            console.log(err)
+        })  
+    },
+
+    getRajaOngkirCity: (req, res) => {
+        Axios.get('https://api.rajaongkir.com/starter/city?key=598395fbbd5364b73d2c50d57df09682')
+        .then((response) => {
+            res.send({
+                error: false, 
+                message: 'Get Raja Ongkir City Success',
+                data: response.data
+            })
+        })
+        .catch((err) => {
+            console.log(err)
+        })  
     },
 
     getUserShippingAddress: (req, res) => {
@@ -309,18 +338,18 @@ module.exports = {
         const eventName = String(data.eventDate).split(' ')[0].replace(/-/g, '_')
 
         var sqlQuery1 = `CREATE EVENT flash_sale_event_${eventName}
-        ON SCHEDULE AT '${data.eventDate} 02:15:00'
+        ON SCHEDULE AT '${data.eventDate} 03:00:00'
         DO
-            UPDATE products SET is_flash_sale = 1, expired_flash_sale = '${data.eventDate} 02:15:00' + INTERVAL 1 DAY WHERE id IN (${data.products_id});`
+            UPDATE products SET is_flash_sale = 1, expired_flash_sale = '${data.eventDate} 03:00:00' + INTERVAL 1 DAY WHERE id IN (${data.products_id});`
         
         db.query(sqlQuery1, (err, resultQuery1) => {
             try {
                 if(err) throw err
 
                 var sqlQuery2 = `CREATE EVENT flash_sale_event_ended_${eventName}
-                ON SCHEDULE AT '${data.eventDate} 02:15:00' + INTERVAL 1 DAY
+                ON SCHEDULE AT '${data.eventDate} 03:00:00' + INTERVAL 1 DAY
                 DO
-                    UPDATE products SET is_flash_sale = 0, expired_flash_sale = null WHERE expired_flash_sale = '${data.eventDate} 02:15:00' + INTERVAL 1 DAY;`
+                    UPDATE products SET is_flash_sale = 0, expired_flash_sale = null WHERE expired_flash_sale = '${data.eventDate} 03:00:00' + INTERVAL 1 DAY;`
                 
                 db.query(sqlQuery2, (err, resultQuery2) => {
                     try {
