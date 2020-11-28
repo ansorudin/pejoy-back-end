@@ -27,15 +27,12 @@ module.exports = {
     },
 
     addShippingAddress: async (req, res) => {
-        
         const data = req.body
        
         try {
             if(!data.address_detail || !data.city || !data.province || !data.phone_number || !data.receiver_name || !data.users_id || !data.longitude || !data.latitude ) throw { message: 'Data Must Be Filled' }
-                console.log('Masuk')
 
                 if(data.is_main_address === 1){
-                    console.log('Masuk1')
                     let findMainAddressQuery = 'SELECT * FROM shipping_address WHERE is_main_address = 1'
                     const findMainAddress = await query(findMainAddressQuery)
     
@@ -106,7 +103,6 @@ module.exports = {
                             })
                         })  
                     }else{
-                        console.log('Masuk 2')
                         var sqlQuery2 = 'INSERT INTO shipping_address SET ?'
                         db.query(sqlQuery2, data, (err, resultSqlQuery2) => {
                             try {
@@ -138,7 +134,6 @@ module.exports = {
                         })
                     }
                 }else{
-                    console.log('Masuk4')
                     var sqlQuery4 = 'INSERT INTO shipping_address SET ?'
                     db.query(sqlQuery4, data, (err, resultSqlQuery4) => {
                         try {
@@ -229,6 +224,7 @@ module.exports = {
 
     getUsersShippingAddressToEdit: (req, res) => {
         const data = req.body
+        console.log(data.id)
         
         var sqlQuery = 'SELECT * FROM shipping_address WHERE id = ?'
         db.query(sqlQuery, data.id, (err, result) => {
@@ -249,41 +245,159 @@ module.exports = {
         })
     },
 
-    updateUsersShippingAddress: (req, res) => {
+    updateUsersShippingAddress: async (req, res) => {
         const data = req.body
-        console.log(data)
+       
+        try {
+            if(!data.address_detail || !data.city || !data.province || !data.phone_number || !data.receiver_name || !data.users_id || !data.longitude || !data.latitude ) throw { message: 'Data Must Be Filled' }
 
-        var sqlQuery1 = `UPDATE shipping_address SET address_detail = ?, city = ?, province = ?, phone_number = ?, receiver_name = ?, users_id = ?, is_main_address = ? WHERE id = ?`
-        db.query(sqlQuery1, [data.address_detail, data.city, data.province, data.phone_number, data.receiver_name, data.users_id, data.is_main_address, data.id], (err, resultQuery1) => {
-            try {
-                if(err) throw err
+                if(data.is_main_address === 1){
+                    console.log('Masuk 1: Mengirim SA Bernilai 1')
+                    let findMainAddressQuery = 'SELECT * FROM shipping_address WHERE is_main_address = 1'
+                    const findMainAddress = await query(findMainAddressQuery)
+    
+                    if(findMainAddress.length === 1){
+                        console.log('Masuk 2: Ada SA yang Bernilai 1')
+                        db.beginTransaction((err) => {
+                            if(err) throw err 
+    
+                            var sqlQuery1 = 'UPDATE shipping_address SET is_main_address = 0 WHERE id = ?'
+                            db.query(sqlQuery1, findMainAddress[0].id, (err, resultSqlQuery1) => {
+                                try {
+                                    if(err){ 
+                                        return db.rollback(() => {
+                                            throw err
+                                        })
+                                    }
+    
+                                    var sqlQuery2 = 'UPDATE shipping_address SET address_detail = ?, city = ?, province = ?, phone_number = ?, receiver_name = ?, users_id = ?, is_main_address = ?, province_id = ?, city_id = ?, nearest_place = ? WHERE id = ?'
+                                    db.query(sqlQuery2, [data.address_detail, data.city, data.province, data.phone_number, data.receiver_name, data.users_id, data.is_main_address, data.province_id, data.city_id, data.nearest_place, data.id], (err, resultSqlQuery2) => {
+                                        try {
+                                            if(err){ 
+                                                return db.rollback(() => {
+                                                    throw err
+                                                })
+                                            }
 
-                var sqlQuery2 = 'SELECT * FROM shipping_address WHERE users_id = ? ORDER BY is_main_address DESC'
-                db.query(sqlQuery2, data.users_id, (err, resultSqlQuery2) => {
-                    try {
-                        if(err) throw err
+                                            var sqlQuery3 = 'SELECT * FROM shipping_address WHERE users_id = ? ORDER BY is_main_address DESC'
+                                            db.query(sqlQuery3, data.users_id, (err, resultSqlQuery3) => {
+                                                try {
+                                                    if(err){ 
+                                                        return db.rollback(() => {
+                                                            throw err
+                                                        })
+                                                    }
 
-                        res.send({
-                            error: false, 
-                            message: 'Edit Shipping Address Success',
-                            data: resultSqlQuery2
-                        })
-                    } catch (error) {
-                        console.log(error)
-                        res.send({
-                            error: true,
-                            message : error.message
+                                                    db.commit((err) => {
+                                                        if(err){ 
+                                                            return db.rollback(() => {
+                                                                throw err
+                                                            })
+                                                        }
+                                                        
+                                                        res.send({
+                                                            error: false, 
+                                                            message: 'Edit Shipping Address Success',
+                                                            data: resultSqlQuery3
+                                                        })
+                                                    })
+                                                } catch (error) {
+                                                    console.log(error)
+                                                    res.send({
+                                                        error: true,
+                                                        message : error.message
+                                                    })
+                                                }
+                                            })
+                                        } catch (error) {
+                                            res.send({
+                                                error: true,
+                                                message : error.message
+                                            })
+                                        }
+                                    })
+                                } catch (error) {
+                                    res.send({
+                                        error: true,
+                                        message : error.message
+                                    })
+                                }
+                            })
+                        })  
+                    }else{
+                        console.log('Masuk 3: Tidak Ada SA yang Bernilai 1')
+                        var sqlQuery4 = `UPDATE shipping_address SET address_detail = ?, city = ?, province = ?, phone_number = ?, receiver_name = ?, users_id = ?, is_main_address = ?, province_id = ?, city_id = ?, nearest_place = ? WHERE id = ?`
+                        db.query(sqlQuery4, [data.address_detail, data.city, data.province, data.phone_number, data.receiver_name, data.users_id, data.is_main_address, data.province_id, data.city_id, data.nearest_place, data.id], (err, resultQuery4) => {
+                            try {
+                                if(err) throw err
+
+                                var sqlQuery5 = 'SELECT * FROM shipping_address WHERE users_id = ? ORDER BY is_main_address DESC'
+                                db.query(sqlQuery5, data.users_id, (err, resultSqlQuery5) => {
+                                    try {
+                                        if(err) throw err
+
+                                        res.send({
+                                            error: false, 
+                                            message: 'Edit Shipping Address Success',
+                                            data: resultSqlQuery5
+                                        })
+                                    } catch (error) {
+                                        console.log(error)
+                                        res.send({
+                                            error: true,
+                                            message : error.message
+                                        })
+                                    }
+                                })
+                            } catch (error) {
+                                console.log(error)
+                                res.json({
+                                    error : true, 
+                                    message : error.message
+                                })
+                            }
                         })
                     }
-                })
-            } catch (error) {
-                console.log(error)
-                res.json({
-                    error : true, 
-                    message : error.message
-                })
-            }
-        })
+                }else{
+                    console.log('Masuk 4: SA TIDAK ADA')
+                    var sqlQuery6 = `UPDATE shipping_address SET address_detail = ?, city = ?, province = ?, phone_number = ?, receiver_name = ?, users_id = ?, is_main_address = ?, province_id = ?, city_id = ?, nearest_place = ? WHERE id = ?`
+                    db.query(sqlQuery6, [data.address_detail, data.city, data.province, data.phone_number, data.receiver_name, data.users_id, data.is_main_address, data.province_id, data.city_id, data.nearest_place, data.id], (err, resultQuery6) => {
+                        try {
+                            if(err) throw err
+
+                            var sqlQuery7 = 'SELECT * FROM shipping_address WHERE users_id = ? ORDER BY is_main_address DESC'
+                            db.query(sqlQuery7, data.users_id, (err, resultSqlQuery7) => {
+                                try {
+                                    if(err) throw err
+
+                                    res.send({
+                                        error: false, 
+                                        message: 'Edit Shipping Address Success',
+                                        data: resultSqlQuery7
+                                    })
+                                } catch (error) {
+                                    console.log(error)
+                                    res.send({
+                                        error: true,
+                                        message : error.message
+                                    })
+                                }
+                            })
+                        } catch (error) {
+                            console.log(error)
+                            res.json({
+                                error : true, 
+                                message : error.message
+                            })
+                        }
+                    })
+                }
+        } catch (error) {
+            res.send({
+                error: true,
+                message : error.message
+            })
+        }
     },
 
     deleteUsersShippingAddress: (req, res) => {
