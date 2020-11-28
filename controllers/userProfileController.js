@@ -31,7 +31,7 @@ module.exports = {
         const data = req.body
        
         try {
-            if(!data.address_detail || !data.city || !data.province || !data.phone_number || !data.receiver_name || !data.users_id || !data.long || !data.lat ) throw { message: 'Data Must Be Filled' }
+            if(!data.address_detail || !data.city || !data.province || !data.phone_number || !data.receiver_name || !data.users_id || !data.longitude || !data.latitude ) throw { message: 'Data Must Be Filled' }
                 
                 let findMainAddressQuery = 'SELECT * FROM shipping_address WHERE is_main_address = 1'
                 const findMainAddress = await query(findMainAddressQuery)
@@ -338,18 +338,18 @@ module.exports = {
         const eventName = String(data.eventDate).split(' ')[0].replace(/-/g, '_')
 
         var sqlQuery1 = `CREATE EVENT flash_sale_event_${eventName}
-        ON SCHEDULE AT '${data.eventDate} 03:00:00'
+        ON SCHEDULE AT '${data.eventDate} 04:15:00'
         DO
-            UPDATE products SET is_flash_sale = 1, expired_flash_sale = '${data.eventDate} 03:00:00' + INTERVAL 1 DAY WHERE id IN (${data.products_id});`
+            UPDATE products SET is_flash_sale = 1, expired_flash_sale = '${data.eventDate} 04:15:00' + INTERVAL 6 HOUR WHERE id IN (${data.products_id});`
         
         db.query(sqlQuery1, (err, resultQuery1) => {
             try {
                 if(err) throw err
 
                 var sqlQuery2 = `CREATE EVENT flash_sale_event_ended_${eventName}
-                ON SCHEDULE AT '${data.eventDate} 03:00:00' + INTERVAL 1 DAY
+                ON SCHEDULE AT '${data.eventDate} 04:15:00' + INTERVAL 6 HOUR
                 DO
-                    UPDATE products SET is_flash_sale = 0, expired_flash_sale = null WHERE expired_flash_sale = '${data.eventDate} 03:00:00' + INTERVAL 1 DAY;`
+                    UPDATE products SET is_flash_sale = 0, expired_flash_sale = null WHERE expired_flash_sale = '${data.eventDate} 04:15:00' + INTERVAL 1 DAY;`
                 
                 db.query(sqlQuery2, (err, resultQuery2) => {
                     try {
