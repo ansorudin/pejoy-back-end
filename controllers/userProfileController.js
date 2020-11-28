@@ -3,6 +3,28 @@ const query = require('./../database/mysqlAsync')
 const jwt = require('jsonwebtoken');
 
 module.exports = {
+    getDataUsers: (req, res) => {
+        const data = req.body
+
+        db.query(`SELECT u.id, ud.full_name, u.email, ud.phone_number, u.created_at, u.user_role  FROM user_detail ud
+        JOIN users u ON ud.id = u.user_detail_id WHERE u.id = ?;`, data.id, (err, result) => {
+            try {
+                if(err) throw err
+                
+                res.send({
+                    error: false,
+                    message : 'Get Data User Success',
+                    data : result
+                })
+            } catch (error) {
+                res.send({
+                    error: true,
+                    message : error.message
+                })
+            }
+        })
+    },
+
     addShippingAddress: async (req, res) => {
         
         const data = req.body
@@ -156,6 +178,43 @@ module.exports = {
             } catch (error) {
                 res.send({
                     error: true,
+                    message : error.message
+                })
+            }
+        })
+    },
+
+    updateUsersShippingAddress: (req, res) => {
+        const data = req.body
+        console.log(data)
+
+        var sqlQuery1 = `UPDATE shipping_address SET address_detail = ?, city = ?, province = ?, phone_number = ?, receiver_name = ?, users_id = ?, is_main_address = ? WHERE id = ?`
+        db.query(sqlQuery1, [data.address_detail, data.city, data.province, data.phone_number, data.receiver_name, data.users_id, data.is_main_address, data.id], (err, resultQuery1) => {
+            try {
+                if(err) throw err
+
+                var sqlQuery2 = 'SELECT * FROM shipping_address WHERE users_id = ? ORDER BY is_main_address DESC'
+                db.query(sqlQuery2, data.users_id, (err, resultSqlQuery2) => {
+                    try {
+                        if(err) throw err
+
+                        res.send({
+                            error: false, 
+                            message: 'Edit Shipping Address Success',
+                            data: resultSqlQuery2
+                        })
+                    } catch (error) {
+                        console.log(error)
+                        res.send({
+                            error: true,
+                            message : error.message
+                        })
+                    }
+                })
+            } catch (error) {
+                console.log(error)
+                res.json({
+                    error : true, 
                     message : error.message
                 })
             }
