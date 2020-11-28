@@ -32,60 +32,95 @@ module.exports = {
        
         try {
             if(!data.address_detail || !data.city || !data.province || !data.phone_number || !data.receiver_name || !data.users_id || !data.longitude || !data.latitude ) throw { message: 'Data Must Be Filled' }
-                
-                let findMainAddressQuery = 'SELECT * FROM shipping_address WHERE is_main_address = 1'
-                const findMainAddress = await query(findMainAddressQuery)
+                console.log('Masuk')
 
-                if(findMainAddress.length === 1){
-                    db.beginTransaction((err) => {
-                        if(err) throw err 
-
-                        var sqlQuery1 = 'UPDATE shipping_address SET is_main_address = 0 WHERE id = ?'
-                        db.query(sqlQuery1, findMainAddress[0].id, (err, resultSqlQuery1) => {
-                            try {
-                                if(err){ 
-                                    return db.rollback(() => {
-                                        throw err
-                                    })
-                                }
-
-                                var sqlQuery2 = 'INSERT INTO shipping_address SET ?'
-                                db.query(sqlQuery2, data, (err, resultSqlQuery2) => {
-                                    try {
-                                        if(err){ 
-                                            return db.rollback(() => {
-                                                throw err
-                                            })
-                                        }
-                                        
-                                        var sqlQuery3 = 'SELECT * FROM shipping_address WHERE users_id = ? ORDER BY is_main_address DESC'
-                                        db.query(sqlQuery3, data.users_id, (err, resultSqlQuery3) => {
-                                            try {
-                                                if(err){ 
-                                                    return db.rollback(() => {
-                                                        throw err
-                                                    })
-                                                }
-                                                
-                                                db.commit((err) => {
+                if(data.is_main_address === 1){
+                    console.log('Masuk1')
+                    let findMainAddressQuery = 'SELECT * FROM shipping_address WHERE is_main_address = 1'
+                    const findMainAddress = await query(findMainAddressQuery)
+    
+                    if(findMainAddress.length === 1){
+                        db.beginTransaction((err) => {
+                            if(err) throw err 
+    
+                            var sqlQuery1 = 'UPDATE shipping_address SET is_main_address = 0 WHERE id = ?'
+                            db.query(sqlQuery1, findMainAddress[0].id, (err, resultSqlQuery1) => {
+                                try {
+                                    if(err){ 
+                                        return db.rollback(() => {
+                                            throw err
+                                        })
+                                    }
+    
+                                    var sqlQuery2 = 'INSERT INTO shipping_address SET ?'
+                                    db.query(sqlQuery2, data, (err, resultSqlQuery2) => {
+                                        try {
+                                            if(err){ 
+                                                return db.rollback(() => {
+                                                    throw err
+                                                })
+                                            }
+                                            
+                                            var sqlQuery3 = 'SELECT * FROM shipping_address WHERE users_id = ? ORDER BY is_main_address DESC'
+                                            db.query(sqlQuery3, data.users_id, (err, resultSqlQuery3) => {
+                                                try {
                                                     if(err){ 
                                                         return db.rollback(() => {
                                                             throw err
                                                         })
                                                     }
                                                     
-                                                    res.send({
-                                                        error: false, 
-                                                        message: 'Add Shipping Address Success',
-                                                        data: resultSqlQuery3
+                                                    db.commit((err) => {
+                                                        if(err){ 
+                                                            return db.rollback(() => {
+                                                                throw err
+                                                            })
+                                                        }
+                                                        
+                                                        res.send({
+                                                            error: false, 
+                                                            message: 'Add Shipping Address Success',
+                                                            data: resultSqlQuery3
+                                                        })
                                                     })
-                                                })
-                                            } catch (error) {
-                                                res.send({
-                                                    error: true,
-                                                    message : error.message
-                                                })
-                                            }
+                                                } catch (error) {
+                                                    res.send({
+                                                        error: true,
+                                                        message : error.message
+                                                    })
+                                                }
+                                            })
+                                        } catch (error) {
+                                            res.send({
+                                                error: true,
+                                                message : error.message
+                                            })
+                                        }
+                                    })
+                                } catch (error) {
+                                    res.send({
+                                        error: true,
+                                        message : error.message
+                                    })
+                                }
+                            })
+                        })  
+                    }else{
+                        console.log('Masuk 2')
+                        var sqlQuery2 = 'INSERT INTO shipping_address SET ?'
+                        db.query(sqlQuery2, data, (err, resultSqlQuery2) => {
+                            try {
+                                if(err) throw err
+                                
+                                var sqlQuery3 = 'SELECT * FROM shipping_address WHERE users_id = ? ORDER BY is_main_address DESC'
+                                db.query(sqlQuery3, data.users_id, (err, resultSqlQuery3) => {
+                                    try {
+                                        if(err) throw err
+
+                                        res.send({
+                                            error: false, 
+                                            message: 'Add Shipping Address Success',
+                                            data: resultSqlQuery3
                                         })
                                     } catch (error) {
                                         res.send({
@@ -101,22 +136,23 @@ module.exports = {
                                 })
                             }
                         })
-                    })  
+                    }
                 }else{
-                    var sqlQuery2 = 'INSERT INTO shipping_address SET ?'
-                    db.query(sqlQuery2, data, (err, resultSqlQuery2) => {
+                    console.log('Masuk4')
+                    var sqlQuery4 = 'INSERT INTO shipping_address SET ?'
+                    db.query(sqlQuery4, data, (err, resultSqlQuery4) => {
                         try {
                             if(err) throw err
                             
-                            var sqlQuery3 = 'SELECT * FROM shipping_address WHERE users_id = ? ORDER BY is_main_address DESC'
-                            db.query(sqlQuery3, data.users_id, (err, resultSqlQuery3) => {
+                            var sqlQuery5 = 'SELECT * FROM shipping_address WHERE users_id = ? ORDER BY is_main_address DESC'
+                            db.query(sqlQuery5, data.users_id, (err, resultSqlQuery5) => {
                                 try {
                                     if(err) throw err
 
                                     res.send({
                                         error: false, 
                                         message: 'Add Shipping Address Success',
-                                        data: resultSqlQuery3
+                                        data: resultSqlQuery5
                                     })
                                 } catch (error) {
                                     res.send({
