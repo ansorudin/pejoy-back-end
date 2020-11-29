@@ -252,12 +252,10 @@ module.exports = {
             if(!data.address_detail || !data.city || !data.province || !data.phone_number || !data.receiver_name || !data.users_id || !data.longitude || !data.latitude ) throw { message: 'Data Must Be Filled' }
 
                 if(data.is_main_address === 1){
-                    console.log('Masuk 1: Mengirim SA Bernilai 1')
                     let findMainAddressQuery = 'SELECT * FROM shipping_address WHERE is_main_address = 1'
                     const findMainAddress = await query(findMainAddressQuery)
     
                     if(findMainAddress.length === 1){
-                        console.log('Masuk 2: Ada SA yang Bernilai 1')
                         db.beginTransaction((err) => {
                             if(err) throw err 
     
@@ -325,7 +323,6 @@ module.exports = {
                             })
                         })  
                     }else{
-                        console.log('Masuk 3: Tidak Ada SA yang Bernilai 1')
                         var sqlQuery4 = `UPDATE shipping_address SET address_detail = ?, city = ?, province = ?, phone_number = ?, receiver_name = ?, users_id = ?, is_main_address = ?, province_id = ?, city_id = ?, nearest_place = ? WHERE id = ?`
                         db.query(sqlQuery4, [data.address_detail, data.city, data.province, data.phone_number, data.receiver_name, data.users_id, data.is_main_address, data.province_id, data.city_id, data.nearest_place, data.id], (err, resultQuery4) => {
                             try {
@@ -359,7 +356,6 @@ module.exports = {
                         })
                     }
                 }else{
-                    console.log('Masuk 4: SA TIDAK ADA')
                     var sqlQuery6 = `UPDATE shipping_address SET address_detail = ?, city = ?, province = ?, phone_number = ?, receiver_name = ?, users_id = ?, is_main_address = ?, province_id = ?, city_id = ?, nearest_place = ? WHERE id = ?`
                     db.query(sqlQuery6, [data.address_detail, data.city, data.province, data.phone_number, data.receiver_name, data.users_id, data.is_main_address, data.province_id, data.city_id, data.nearest_place, data.id], (err, resultQuery6) => {
                         try {
@@ -443,7 +439,7 @@ module.exports = {
         JOIN products p ON vp.products_id = p.id
         JOIN product_size ps ON vp.product_size_id = ps.id
         JOIN stock s ON vp.id = s.variant_product_id
-        JOIN gudang g ON s.gudang_id = g.id;`
+        JOIN gudang g ON s.gudang_id = g.id ORDER BY p.id ASC;`
         db.query(sqlQuery, (err, result) => {
             try {
                 if(err) throw err
@@ -488,18 +484,18 @@ module.exports = {
         const eventName = String(data.eventDate).split(' ')[0].replace(/-/g, '_')
 
         var sqlQuery1 = `CREATE EVENT flash_sale_event_${eventName}
-        ON SCHEDULE AT '${data.eventDate} 04:15:00'
+        ON SCHEDULE AT '${data.eventDate} 11:40:00'
         DO
-            UPDATE products SET is_flash_sale = 1, expired_flash_sale = '${data.eventDate} 04:15:00' + INTERVAL 6 HOUR WHERE id IN (${data.products_id});`
+            UPDATE products SET is_flash_sale = 1, expired_flash_sale = '${data.eventDate} 11:40:00' + INTERVAL 5 MINUTE WHERE id IN (${data.products_id});`
         
         db.query(sqlQuery1, (err, resultQuery1) => {
             try {
                 if(err) throw err
 
                 var sqlQuery2 = `CREATE EVENT flash_sale_event_ended_${eventName}
-                ON SCHEDULE AT '${data.eventDate} 04:15:00' + INTERVAL 6 HOUR
+                ON SCHEDULE AT '${data.eventDate} 11:40:00' + INTERVAL 5 MINUTE
                 DO
-                    UPDATE products SET is_flash_sale = 0, expired_flash_sale = null WHERE expired_flash_sale = '${data.eventDate} 04:15:00' + INTERVAL 1 DAY;`
+                    UPDATE products SET is_flash_sale = 0, expired_flash_sale = null WHERE expired_flash_sale = '${data.eventDate} 11:40:00' + INTERVAL 5 MINUTE;`
                 
                 db.query(sqlQuery2, (err, resultQuery2) => {
                     try {
@@ -537,4 +533,159 @@ module.exports = {
             }
         })
     },
+
+    getUsersTransactions: (req, res) => {
+        const data = req.body
+
+        var sqlQuery1 = `SELECT t.id, p.id AS product_id, td.variant_product_id, b.brands_name, td.product_name, td.product_price, td.qty, 
+        g.id AS gudang_id, td.image_product AS image_product, td.shipping_address, st.date AS transaction_date,
+        sn.name AS status FROM transaction_detail td
+        JOIN variant_product vp ON td.variant_product_id = vp.id
+        JOIN products p ON vp.products_id = p.id
+        JOIN brands b ON p.brands_id = b.id
+        JOIN transaction t ON td.transaction_id = t.id
+        JOIN status_transaction st ON td.transaction_id = st.transaction_id
+        JOIN status_name sn ON st.status_name_id = sn.id
+        JOIN gudang g ON td.gudang_id = g.id
+        WHERE st.status_name_id = 2`
+        db.query(sqlQuery1, data.status_name_id, (err, resultQuery1) => {
+            try {
+                if(err) throw err
+
+                let mapResultQuery1 = []
+
+                resultQuery1.forEach((value1, index1) => {
+                    let idTransactionExist =  null
+
+                    mapResultQuery1.forEach((find, findIndex) => {
+                        if(find.id === value1.id){
+                            idTransactionExist = findIndex
+                        }
+                    })
+
+                    if(idTransactionExist !== null){
+                        mapResultQuery1[idTransactionExist].total += value1.qty * value1.product_price
+                        mapResultQuery1[idTransactionExist].detail_transaction.push({
+                            product_id: value1.product_id,
+                            variant_product_id: value1.variant_product_id,
+                            brand_name: value1.brands_name,
+                            product_name: value1.product_name,
+                            product_price: value1.product_price,
+                            qty: value1.qty,
+                            total_product: value1.qty * value1.product_price,
+                            image_product: value1.image_product,
+                            gudang_id: value1.gudang_id
+                        })
+                        mapResultQuery1[idTransactionExist].detail_transaction_to_update.push({
+                            qty: value1.qty,
+                            gudang_id: value1.gudang_id,
+                            variant_product_id: value1.variant_product_id
+                        })
+                    }else{
+                        mapResultQuery1.push({
+                            id: value1.id,
+                            shipping_address: value1.shipping_address,
+                            transaction_date: value1.transaction_date,
+                            status: value1.status,
+                            total: value1.qty * value1.product_price,
+                            detail_transaction: [
+                                {
+                                    product_id: value1.product_id,
+                                    variant_product_id: value1.variant_product_id,
+                                    brand_name: value1.brands_name,
+                                    product_name: value1.product_name,
+                                    product_price: value1.product_price,
+                                    qty: value1.qty,
+                                    total_product: value1.qty * value1.product_price,
+                                    image_product: value1.image_product,
+                                    gudang_id: value1.gudang_id
+                                }
+                            ],
+                            transaction_to_update: [
+                                {
+                                    transaction_id: value1.id,
+                                    status_name_id: 3
+                                }
+                            ],
+                            detail_transaction_to_update: [
+                                {
+                                    qty: value1.qty,
+                                    gudang_id: value1.gudang_id,
+                                    variant_product_id: value1.variant_product_id
+                                }
+                            ]
+                        })
+                    }
+                })
+
+                res.send({
+                    error: false,
+                    message: 'Get Users Transactions Success',
+                    data: mapResultQuery1
+                })
+            } catch (error) {
+                res.send({
+                    error: true,
+                    message : error.message
+                })
+            }
+        })
+    },
+
+    deliverProductsToCustomer: (req, res) => {
+        let data1 = req.body[0] // Data To Update Status Transaction
+        let data2 = req.body[1] // Data To Update Stock
+
+        console.log(data1[0].transaction_id, data1[0].status_name_id)
+
+        db.beginTransaction((err) => {
+            Promise.all(data2.map((value, index) => {
+                var promise = new Promise((resolve, reject) => {
+                    db.query('UPDATE stock SET stock_gudang = stock_gudang - ? WHERE gudang_id = ? AND variant_product_id = ?', [data2[index].qty, data2[index].gudang_id, data2[index].variant_product_id], (err, result) => {
+                        try {
+                            if(err) throw err
+                        } catch (error) {
+                        }
+                    })
+                })
+            })).then((response) => {
+                var sqlQuery1 = `INSERT INTO status_transaction SET ?`
+                db.query(sqlQuery1, data1, (err, resultSqlQuery1) => {
+                    try {
+                        if(err){ 
+                            return db.rollback(() => {
+                                throw err
+                            })
+                        }
+
+                        db.commit((err) => {
+                            if(err){ 
+                                return db.rollback(() => {
+                                    throw err
+                                })
+                            }
+                            
+                            res.send({
+                                error: false, 
+                                message: 'Product Delivered To Customer',
+                                data: resultSqlQuery1
+                            })
+                        })
+                    } catch (error) {
+                        res.send({
+                            error: true,
+                            message : error.message
+                        })
+                    }
+                })
+
+            }).catch((error) => {
+                res.send({
+                    error: true,
+                    message: error.message
+                })
+            })
+        })
+    }
 }
+
