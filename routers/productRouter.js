@@ -1,4 +1,4 @@
-const { getAllProduct, getFilter, getProductByCategory, getProductByMultipleCategory, getProductDetail, getCart, getEstimatedOngkir } = require('./../controllers/productController')
+const { getAllProduct, getFilter, getProductByCategory, getProductByMultipleCategory, getProductDetail, getCart, getEstimatedOngkir, addCart, deleteCart, updateQty } = require('./../controllers/productController')
 const generateToken = require('../helpers/generateJwt')
 const jwtVerify = require('../middleware/jwt')
 
@@ -12,6 +12,9 @@ Router.post('/filter/multi-category', getProductByMultipleCategory)
 Router.post('/cart', jwtVerify, getCart)
 Router.get('/generate-token/:id', generateToken)
 Router.post('/estimated-ongkir/all',jwtVerify, getEstimatedOngkir)
+Router.post('/cart/add-to-cart', jwtVerify, addCart)
+Router.delete('/cart/delete-cart', jwtVerify, deleteCart)
+Router.patch('/cart/update-cart', jwtVerify, updateQty)
 
 
 

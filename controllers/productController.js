@@ -266,6 +266,163 @@ const getEstimatedOngkir = (req, res) => {
     
 }
 
+const addCart = async(req, res) => {
+    let data = req.body
+    let users_id = req.dataToken.id
+
+    let queryCheckUserId = `select * from users where id = ?`
+    let queryInsertToDb = `insert into cart set ?`
+    let queryGetDataCart = `select * from cart where users_id = ? and variant_product_id = ?;`
+    let queryGetStockVariantProduct = `SELECT sum(stock_customer) as stock FROM stock where variant_product_id = ?;`
+
+    try {
+        if(!data.qty && !data.variant_product_id) throw new Error('Data not complete')
+        await query('START TRANSACTION')
+        const dataUser = await query(queryCheckUserId, users_id)
+        .catch(error => {
+            throw error
+        })
+
+        if(dataUser.length === 0) throw new Error('User not found')
+
+        const dataStock = await query(queryGetStockVariantProduct, data.variant_product_id )
+        .catch(error => {
+            throw error
+        })
+
+        const dataCartByUser = await query(queryGetDataCart,[dataUser[0].id, data.variant_product_id] )
+        .catch(error => {
+            throw error
+        })
+
+        let stockByVariant = 0
+        dataCartByUser.forEach((val, i) => {
+            stockByVariant += val.qty
+            if(val.id === data.id){
+                qtySaatIni += val.qty
+            }
+        })
+
+        if(data.qty > (dataStock[0].stock - stockByVariant)) throw new Error('qty melebihi stock')
+
+        let dataToInsert = {
+            users_id : dataUser[0].id,
+            variant_product_id : data.variant_product_id,
+            qty : data.qty
+        }
+        
+        const result = await query(queryInsertToDb, dataToInsert)
+        .catch(error => {
+            throw error
+        })
+
+        await query("COMMIT");
+
+        res.send({
+            error : false,
+            message : 'Add to Cart Succes'
+        })
+
+    } catch (error) {
+        await query("ROLLBACK");
+        console.log('ROLLBACK gagal insert');
+        res.send({
+            error: true,
+            message : error.message
+        })
+    }
+}
+const deleteCart = (req, res) => {
+    let data = req.body
+    let users_id = req.dataToken.id
+
+    try {
+        if(!data.id) throw new Error('Data not complete')
+        db.query('select * from cart where id = ?', data.id, (err, result) => {
+            try {
+                if(err) throw err
+                db.query('delete from cart where id = ? and users_id = ?', [result[0].id, users_id], (err, result) => {
+                    try {
+                        if(err) throw err
+                        res.send({
+                            error : false,
+                            message : 'Delete succes'
+                        })
+                    } catch (error) {
+                        res.send({
+                            error: true,
+                            message : error.message
+                        })
+                    }
+                })
+            } catch (error) {
+                res.send({
+                    error: true,
+                    message : error.message
+                })
+            }
+        })
+    } catch (error) {
+        res.send({
+            error: true,
+            message : error.message
+        })
+    }
+}
+
+const updateQty = async(req, res) => {
+    let data = req.body
+    let users_id = req.dataToken.id
+
+    let queryGetDataCart = `select * from cart where users_id = ? and variant_product_id = ?;`
+    let queryGetStockVariantProduct = `SELECT sum(stock_customer) as stock FROM stock where variant_product_id = ?;`
+    let queryUpdateStock = `update cart set qty = ? where id = ?`
+
+    try {
+        if(!data.id && !data.qty && !data.variant_product_id) throw new Error('Data not complete')
+        await query('START TRANSACTION')
+        const dataStock = await query(queryGetStockVariantProduct, data.variant_product_id )
+        .catch(error => {
+            throw error
+        })
+
+        const dataCartByUser = await query(queryGetDataCart,[users_id, data.variant_product_id] )
+        .catch(error => {
+            throw error
+        })
+
+        let stockByVariant = 0
+        let qtySaatIni = 0
+        dataCartByUser.forEach((val, i) => {
+            stockByVariant += val.qty
+            if(val.id === data.id){
+                qtySaatIni += val.qty
+            }
+        })
+
+        if(data.qty > (dataStock[0].stock - (stockByVariant - qtySaatIni))) throw new Error('qty melebihi stock')
+
+        const resultUpdate = await query(queryUpdateStock,[data.qty, data.id])
+        .catch(error => {
+            throw error
+        })
+        await query("COMMIT");
+
+        res.send({
+            error : false,
+            message : 'Update qty Succes'
+        })
+
+        
+    } catch (error) {
+        await query("ROLLBACK");
+        console.log('ROLLBACK gagal update');
+        res.send({
+            error: true,
+            message : error.message
+        })
+    }
+}
 
 module.exports = {
     getAllProduct,
@@ -274,9 +431,13 @@ module.exports = {
     getProductDetail,
     getProductByMultipleCategory,
     getCart,
-    getEstimatedOngkir
+    getEstimatedOngkir,
+    addCart,
+    deleteCart,
+    updateQty
 
 }
+
 
 
     
