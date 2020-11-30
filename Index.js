@@ -1,10 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const LoggingAPI = require('./middleware/LoggingAPI');
-
+const morgan =require('morgan')
 const landingPageRouter = require('./routers/landingPageRouter');
 const productRouter = require('./routers/productRouter');
 const userProfileRouter = require('./routers/userProfileRouter');
+const userAuth=require('./routers/userAuth')
 
 const PORT = 2000
 
@@ -15,6 +16,8 @@ app.use(cors())
 app.get('/', (req, res) => {
     res.send('Welcome To API')
 })
+
+app.use('/auth',morgan('dev'),userAuth)
 
 app.use(LoggingAPI)
 // For Get Image
