@@ -1,7 +1,7 @@
 function buildConditions(params) {
     var conditions = [];
     var values = [];
-    var conditionsStr;
+    var conditionsStr = ''
   
     if (params.category.length !== 0) {
         conditions.push(`category_id in (${params.category})`)
@@ -23,7 +23,6 @@ function buildConditions(params) {
     return {
       where: conditions.length ?
                conditions.join(' AND ') : '1',
-      values: values
     };
 }
 

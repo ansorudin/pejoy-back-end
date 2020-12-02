@@ -1,7 +1,7 @@
 function categoryFilter(params) {
     var conditions = [];
     var values = [];
-    var conditionsStr;
+    var conditionsStr = ''
   
     if (typeof params.category !== 'undefined') {
         conditions.push(`category_id in (${params.category})`)
@@ -12,7 +12,7 @@ function categoryFilter(params) {
     return {
       where: conditions.length ?
                conditions.join(' AND ') : '1',
-      values: values
+      order: conditionsStr
     };
 }
 
