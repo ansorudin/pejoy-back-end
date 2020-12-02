@@ -29,6 +29,17 @@ module.exports={
     }).withMessage('Password must contain at least 6 characters').matches(/\d/).withMessage('password must contain a number')
     ],
 
+    phoneValidator:[
+    check('phonenumber')
+    .isMobilePhone()
+    .withMessage('must be a valid phonenumber'),
+    check('phonenumber','phone number is required').notEmpty(),
+    check('phonenumber').isLength({
+        min:11,
+        max:13,
+    }).withMessage('phone number must at least container 11 digits and not morethan 13 digits')    
+    ],
+
     forgotPasswordValidator:[forgotPasswordValidator = check('email')
             .not()
             .isEmpty()

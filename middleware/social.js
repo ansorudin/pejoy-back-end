@@ -5,7 +5,7 @@ const client= new OAuth2Client(process.env.GOOGLE_CLIENT)
 const axios = require('axios')
 const fs=require('fs')
 require('dotenv').config()
-
+const {validationResult} =require('express-validator')
 
 module.exports={
     googleMidd: async (req,res,next)=>{
@@ -126,7 +126,58 @@ facebookMidd: async (req,res,next)=>{
               message:'something went wrong,please try again'
                     });
                 }
-             }
+             },
+
+      isHumanValidation: async (req,res,next)=>{
+        const notValid = validationResult(req)
+        const {captchaToken,phonenumber,id}=req.body
+        //const {captchaToken,phonenumber,id}=req.body
+        if(!notValid.isEmpty()){
+          const firstError = notValid.array().map(error => error.msg)[0];
+          console.log(firstError)
+          res.status(422).send({
+              success:false,
+              message: firstError
+              });
+
+          
+          }else{
+            try {
+          
+           
+              const googleVerifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=6LfhIPMZAAAAAKfDJEoVdo9OSSO5UDe4Oe9-kacM&response=${captchaToken}`;
+              const response = await axios.post(googleVerifyUrl);
+           
+              const { success } = response.data;
+              if (success) {
+                
+                  //req.verificationdata={phonenumber,id}
+          
+                  //verify phonenumber with twilio
+              
+             
+                  req.verificationdata={phonenumber,id}
+                  next()
+              } else {
+                
+                res.status(400)
+                      .send({success:false, message: "Invalid Captcha. Try again." });
+              }
+          } catch (e) {
+            res.status(400).send({
+              success:false,
+              message:'recaptcha error,try again'
+            })
+          }
+
+          }
+      
+  
+        }
+          
+
+        
+    
     }
         
                            

@@ -138,6 +138,49 @@ module.exports={
 
                 }
 
+        },
+        PhoneVerfication:async (req,res)=>{
+                try {
+                    const {id,phonenumber}=req.verified_user
+                    const user_phone = await query('select ud.phone_number as user_phone ,u.user_detail_id from users u join user_detail ud on u.user_detail_id = ud.id where u.id=?',id)
+                    const {nomorhape,user_detail_id}=user_phone[0]
+
+                    if(nomorhape===phonenumber){
+                        try {
+                            await query('update user_detail set? where id =?',[{phone_number:phonenumber},user_detail_id])
+                            res.status(200).send({
+                                success:true,
+                                message:'nomor lama anda telah kamu perbarui ,dan telah terverifikasi'
+                            })
+                        } catch (error) {
+                           res.status(400).send({
+                               success:false,
+                               message:'something went wrond please try again'
+                           })
+                        }
+                    }else{
+                        try {
+                            await query('update user_detail set? where id =?',[{phone_number:phonenumber},user_detail_id])
+                            await query('update users set? where user_detail_id=?',[{is_verified:1},user_detail_id])
+                            res.status(200).send({
+                                success:true,
+                                message:'nomor anda telah kami verifikasi terima kasih'
+                            })
+                        } catch (error) {
+                            res.status(400).send({
+                                success:false,
+                                message:'something went wrond please try again'
+                            })
+                        }
+                    }
+                } catch (error) {
+                    res.status(400).send({
+                        success:false,
+                        message:'something went wrond please try again'
+                    })
+                   
+                }
+           
         }
             
     }
