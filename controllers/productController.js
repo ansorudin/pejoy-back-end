@@ -4,6 +4,7 @@ const { all } = require('../routers/productRouter')
 const query = require('./../database/mysqlAsync')
 const db = require('./../database/mysql')
 const { default: Axios } = require('axios')
+const sort = require('../helpers/Sort')
 
 const getAllProduct = async (req, res) => {
     let getAllProductQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount,pr.rating, p.is_flash_sale, group_concat(distinct(ip.url)) as url  ,p.name, c.category_name,c.id as category_id, min(vp.price) as price,  b.brands_name from products p
@@ -77,10 +78,28 @@ const getFilter = async(req, res) => {
 const getProductByCategory = async(req, res) => {
     // id Category
     let filter = req.body
-    
     let conditions = categoryFilter(filter)
 
-    let getProductCategoryQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount, pr.rating, pr.id as review_id, p.is_flash_sale, group_concat(distinct(ip.url)) as url  ,p.name, c.category_name, c.id as category_id ,min(vp.price) as price, b.brands_name, b.id as brand_id from products p
+    // let page = parseInt(req.query.page) 
+    // let limit = parseInt(req.query.limit) 
+    // let startIndex = (page - 1) * limit // 1 * 10 = 10
+    // // let endIndex = page * limit // 2 * 10 = 20
+    
+    // let nextPage = {
+    //     page : page + 1,
+    //     limit : limit
+    // }
+    // const previousPage = {
+    //     page : page - 1,
+    //     limit : limit
+    // }
+    // // if(startIndex > 0){
+        
+    // // }
+
+    let getProductCategoryQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount, pr.rating, 
+    pr.id as review_id, p.is_flash_sale, group_concat(distinct(ip.url)) as url , p.name, c.category_name, c.id as category_id ,
+    min(vp.price) as price, b.brands_name, b.id as brand_id from products p
     join variant_product vp on vp.products_id = p.id
     join brands b on b.id = p.brands_id
     join stock s on s.variant_product_id = vp.id
@@ -95,7 +114,7 @@ const getProductByCategory = async(req, res) => {
 
         res.send({
             error : false,
-            filterCategory
+            filterCategory,
         })
     } catch (error) {
         res.send({
@@ -109,6 +128,10 @@ const getProductByMultipleCategory = async(req, res) => {
     let filter = req.body
     
     let conditions = buildConditions(filter)
+    let order = sort(req.query.sort)
+
+    console.log(order)
+    
 
     let getProductMultipleCategoryQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount, pr.rating, pr.id as review_id, p.is_flash_sale, group_concat(distinct(ip.url)) as url  ,p.name, c.category_name, c.id as category_id ,min(vp.price) as price, b.brands_name, b.id as brand_id from products p
     join variant_product vp on vp.products_id = p.id
@@ -118,7 +141,8 @@ const getProductByMultipleCategory = async(req, res) => {
     join image_product ip on ip.products_id = p.id
     left join product_review pr on pr.products_id = p.id
     group by p.id
-    having stock_all_gudang > 0 and ${conditions.where};`
+    having stock_all_gudang > 0 and ${conditions.where}
+    ${order};`
 
     try {
         let filterCategory = await query(getProductMultipleCategoryQuery)
@@ -139,13 +163,14 @@ const getProductByMultipleCategory = async(req, res) => {
 const getProductDetail = async(req, res) => {
     let id = req.params.id
 
-    let productByIdQuery = `select p.id, name, discount, is_flash_sale, brands_name from products p join brands b on b.id = p.brands_id where p.id = ?;`
+    let productByIdQuery = `select p.id, p.weight, p.description, name, discount, is_flash_sale, brands_name from products p join brands b on b.id = p.brands_id where p.id = ?;`
     let productReviewQuery = `select pr.id, rating, review, full_name from product_review pr
     join users u on u.id = pr.users_id
     join user_detail ud on ud.id = u.user_detail_id
     where products_id = ? order by rating desc;`
     let productImageQuery = `select * from image_product where products_id = ?;`
-    let sizeAndStockQuery = `select sum(s.stock_customer) as stock_customer,price, ps.size from variant_product vp 
+    
+    let sizeAndStockQuery = `select vp.id as variant_product_id, sum(s.stock_customer) as stock_customer,price, ps.size from variant_product vp 
     join stock s on s.variant_product_id = vp.id
     join product_size ps on ps.id = vp.product_size_id
     where products_id = ?
@@ -186,7 +211,7 @@ const getCart = async(req, res) => {
 
     let users_id = req.dataToken.id
 
-    let cartQuery = `select sum(s.stock_customer) as stock, c.id, qty, price,(price * qty) as total_price, (price * (discount / 100)) as potongan,((price * (discount / 100)) * qty) as total_potongan , p.name, p.discount, p.is_flash_sale, b.brands_name, size, url from cart c
+    let cartQuery = `select p.weight,c.variant_product_id, (p.weight * qty) as total_weight, sum(s.stock_customer) as stock, c.id, qty, price,(price * qty) as total_price, (price * (discount / 100)) as potongan,((price * (discount / 100)) * qty) as total_potongan , p.name, p.discount, p.is_flash_sale, b.brands_name, size, url from cart c
     join variant_product vp on vp.id = c.variant_product_id
     join products p on p.id = vp.products_id
     join brands b on b.id = p.brands_id
@@ -215,7 +240,7 @@ const getEstimatedOngkir = (req, res) => {
     let data = req.body
     let users_id = req.dataToken.id
 
-    db.query(`select id, longUser, latUser, province_id, city_id from shipping_address
+    db.query(`select id, address_detail, longUser, latUser, province_id, city_id from shipping_address
     where users_id = ${users_id} and is_main_address = 1`, (err, result) => {
         try {
             if(err) throw err
@@ -274,6 +299,7 @@ const addCart = async(req, res) => {
     let queryInsertToDb = `insert into cart set ?`
     let queryGetDataCart = `select * from cart where users_id = ? and variant_product_id = ?;`
     let queryGetStockVariantProduct = `SELECT sum(stock_customer) as stock FROM stock where variant_product_id = ?;`
+    let queryAddCart = `update cart set qty = ? where id = ?`
 
     try {
         if(!data.qty && !data.variant_product_id) throw new Error('Data not complete')
@@ -295,26 +321,24 @@ const addCart = async(req, res) => {
             throw error
         })
 
-        let stockByVariant = 0
-        dataCartByUser.forEach((val, i) => {
-            stockByVariant += val.qty
-            if(val.id === data.id){
-                qtySaatIni += val.qty
+        if(dataCartByUser.length === 0){
+            if(data.qty > dataStock[0].stock) throw new Error('qty melebihi stock')
+            let dataToInsert = {
+                users_id : dataUser[0].id,
+                variant_product_id : data.variant_product_id,
+                qty : data.qty
             }
-        })
-
-        if(data.qty > (dataStock[0].stock - stockByVariant)) throw new Error('qty melebihi stock')
-
-        let dataToInsert = {
-            users_id : dataUser[0].id,
-            variant_product_id : data.variant_product_id,
-            qty : data.qty
+            const result = await query(queryInsertToDb, dataToInsert)
+            .catch(error => {
+                throw error
+            })
+        }else{
+            if(data.qty > (dataStock[0].stock) - dataCartByUser[0].qty)throw new Error('qty melebihi stock')
+            const resultUpdate = await query(queryAddCart, [(dataCartByUser[0].qty + data.qty), dataCartByUser[0].id])
+            .catch(error => {
+                throw error
+            })
         }
-        
-        const result = await query(queryInsertToDb, dataToInsert)
-        .catch(error => {
-            throw error
-        })
 
         await query("COMMIT");
 
@@ -333,15 +357,13 @@ const addCart = async(req, res) => {
     }
 }
 const deleteCart = (req, res) => {
-    let data = req.body
-    let users_id = req.dataToken.id
-
+    let id = req.params.id
     try {
-        if(!data.id) throw new Error('Data not complete')
-        db.query('select * from cart where id = ?', data.id, (err, result) => {
+        if(!id) throw new Error('Data not complete')
+        db.query('select * from cart where id = ?', id, (err, result) => {
             try {
                 if(err) throw err
-                db.query('delete from cart where id = ? and users_id = ?', [result[0].id, users_id], (err, result) => {
+                db.query('delete from cart where id = ?', result[0].id, (err, result) => {
                     try {
                         if(err) throw err
                         res.send({
@@ -374,8 +396,8 @@ const updateQty = async(req, res) => {
     let data = req.body
     let users_id = req.dataToken.id
 
-    let queryGetDataCart = `select * from cart where users_id = ? and variant_product_id = ?;`
     let queryGetStockVariantProduct = `SELECT sum(stock_customer) as stock FROM stock where variant_product_id = ?;`
+    let queryGetDataCart = `select * from cart where users_id = ? and variant_product_id = ?;`
     let queryUpdateStock = `update cart set qty = ? where id = ?`
 
     try {
@@ -424,6 +446,123 @@ const updateQty = async(req, res) => {
     }
 }
 
+const addTransaction = async (req, res) => {
+    
+    let data = req.body
+    let users_id = req.dataToken.id
+
+    // check users id
+    let queryCheckUserIdQuery = `select * from users where id = ?`
+
+    // get latitude and longitude shipping addres user
+    let getLatAndLangUser = `select id, longUser, latUser, province_id, city_id from shipping_address
+    where users_id = ? and is_main_address = 1`
+
+    // check stock varian in cart available or not
+    let checkStockQuery = `select SUM(s.stock_customer) as stock, qty, c.id, c.variant_product_id from cart c
+    join stock s on s.variant_product_id = c.variant_product_id
+    where users_id = ?
+    group by c.id;`
+
+    // store to Transaction table
+    let storeToTransactionQuery = `insert into transaction set ?`
+    
+    // store to Transaction Detail
+    let storeToDetailTransactionQuery = `
+    INSERT INTO transaction_detail (product_name, product_price, qty, url, transaction_id) VALUES ?`
+
+   
+    try {
+        await query('START TRANSACTION')
+        const dataUser = await query(queryCheckUserIdQuery, users_id)
+        .catch(error => {
+            throw error
+        })
+        if(dataUser.length === 0) throw new Error('User not Found')
+
+        const checkStockFromCart = await query(checkStockQuery, dataUser[0].id)
+        .catch(error => {
+            throw error
+        })
+
+        // check qty from cart apakah ada yg melebihi stock apa engga
+        checkStockFromCart.forEach((val, i) => {
+            if(val.stock < val.qty) throw new Error(`qty variant_id = ${val.variant_product_id} melebihi stock`)
+        })
+
+        const resultStoreToTransaction = await query(storeToTransactionQuery, {users_id : dataUser[0].id, shipping_from : data.gudang_id, shipping_rates : data.shipping_rates, shipping_to : data.shipping_to, total_amount : data.total_amount })
+        .catch(error => {
+            throw error
+        })
+        
+        let dataToInsert = []
+        let transaction_id = resultStoreToTransaction.insertId
+        data.data.forEach((val, i) => {
+            dataToInsert.push([val.product_name, val.product_price, val.qty, val.url, transaction_id])
+        })
+        const resultStoreToTransactionDetail = await query(storeToDetailTransactionQuery, [dataToInsert] )
+        .catch(error => {
+            throw error
+        })
+        
+        // get latLongUser
+        const LatAndLongUser = await query(getLatAndLangUser, dataUser[0].id)
+        .catch(error => {
+            throw error
+        })
+
+        checkStockFromCart.forEach( async (dat, idx) => {
+            let updateQty = []
+            const dataStock = await query(`
+            SELECT g.id, gudang_name, s.id as stock_id, stock_customer, variant_product_id ,(3956 * 2 * ASIN(SQRT( POWER(SIN(( ${LatAndLongUser[0].latUser} - latGudang) *  pi()/180 / 2), 2) +COS( ${LatAndLongUser[0].latUser} * pi()/180) * COS(latGudang * pi()/180) * POWER(SIN(( ${LatAndLongUser[0].longUser} - longGudang) * pi()/180 / 2), 2) ))) as distance  
+            from gudang g
+            join stock s on s.gudang_id = g.id
+            where variant_product_id = ${dat.variant_product_id} 
+            order by distance;`)
+            .catch(error => {
+                throw error
+            })
+
+            let qty = dat.qty
+    
+            dataStock.forEach(async(val, i) => {
+                if(qty > 0){
+                    updateQty.push({stock : Math.max(0, val.stock_customer - qty), id :val.stock_id })
+                    db.query(`update stock set stock_customer = ${Math.max(0, val.stock_customer - qty)} where id = ${val.stock_id};`, (err, result) => {
+                        if(err) throw err
+                    })
+                }else{
+                    updateQty.push({stock :val.stock_customer, id : val.id})
+                }
+                qty -= val.stock_customer
+            })
+            updateQty.slice(0, updateQty.length -1)  
+        })
+
+        const resultDeleteCart = await query(`delete from cart where users_id = ${dataUser[0].id}`)
+        .catch(error => {
+            throw error
+        })
+
+        // console.log(resultStoreToTransactionDetail)
+         await query("COMMIT");
+         
+        res.send({
+            error : false,
+            message : 'Add to Transaction Success',
+            // dataToInsert
+        })
+       
+    } catch (error) {
+        await query("ROLLBACK");
+        console.log('ROLLBACK gagal update');
+        res.send({
+            error : true,
+            message : error.message
+        })
+    }
+}
+
 module.exports = {
     getAllProduct,
     getFilter,
@@ -434,7 +573,8 @@ module.exports = {
     getEstimatedOngkir,
     addCart,
     deleteCart,
-    updateQty
+    updateQty,
+    addTransaction
 
 }
 
