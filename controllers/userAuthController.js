@@ -4,7 +4,9 @@ const {validationResult} =require('express-validator')
 const jwt = require('jsonwebtoken')
 const setRole = require('../helpers/set_role')
 require('dotenv').config()
-
+const fs=require('fs')
+const handlebar=require('handlebars')
+const nodemailer=require('../helpers/nodemailer')
 
 
 module.exports={
@@ -140,6 +142,10 @@ module.exports={
 
         },
         PhoneVerfication:async (req,res)=>{
+           
+            
+            
+         
                 try {
                     const {id,phonenumber}=req.verified_user
                     const user_phone = await query('select ud.phone_number as user_phone ,u.user_detail_id from users u join user_detail ud on u.user_detail_id = ud.id where u.id=?',id)
@@ -181,6 +187,103 @@ module.exports={
                    
                 }
            
+        },
+
+        forgotPassword:async(req,res)=>{
+            const {email}= req.body
+            const notValid = validationResult(req)
+            if(!notValid.isEmpty()){
+                const firstError = notValid.array().map(error => error.msg)[0];
+    
+                res.status(422).send({
+                    success:false,
+                    message: firstError
+                    });
+    
+                
+                }else{
+
+                    try {
+                        const user = await query('select id, email from users where email=?',email)
+                        const user_email = user[0].email
+                        const id=user[0].id
+                        if(user_email){
+                            //send email/with token expiry 5 menit
+                            const token = jwt.sign({id:id},process.env.SECRET_KEY,{expiresIn: '20m'})
+                            
+                            fs.readFile(
+                                "D:/Purwadhika/project-akhir-server/template/email.html",
+        
+                                { encoding: "utf-8" },
+                                (err, file) => {
+                                    if (err) throw err;
+                                    const template = handlebar.compile(file);
+                                    const resulttemplate=template({
+                                        email:email,
+                                        link:`http://localhost:3000/resetpassword/${token}`
+                                    })
+                                    nodemailer
+                                        .sendMail({
+                                            from: "pejoy.com",
+                                            to: email,
+                                            subject: "password recovery",
+                                            html: resulttemplate
+                                        })
+                                        .then(respons => {
+                                            res.status(200).send({
+                                                error: false,
+                                                message: " please check your mail to recover your account !!"
+                                            });
+                                        })
+                                        .catch(err => {
+                                            res.status(500).send({
+                                                error: true,
+                                                message: 'something went wrong'
+                                            });
+                                        });
+                                }
+                            );
+                        }else{
+                            res.status(400).send({  
+                                success:false,
+                                message:'email not found ,please sign up'
+                            })
+                        }
+                    } catch (error) {
+                     console.log(error)
+                    }
+                }
+   
+
+        },
+        resetpassword:async(req,res)=>{
+            const {newPassword}= req.body
+            console.log(newPassword)
+           
+            
+            const notValid = validationResult(req)
+        
+            if(!notValid.isEmpty()){
+                const firstError = notValid.array().map(error => error.msg)[0];
+                    console.log(firstError)
+                res.status(400).send({
+                    success:false,
+                    message: firstError
+                    });
+    
+                
+                }else{
+                     try {
+                         const hashed = await bycrpt.hash(newPassword,10)
+                         await query('update users set? where id=?',[{password:hashed},req.dataToken.id])
+                         res.status(200).send({
+                             success:false,
+                             message:'update password success'
+                         })
+                     } catch (error) {
+                         console.log(error)
+                     }
+                }
         }
             
     }

@@ -52,6 +52,9 @@ module.exports={
         .not()
         .isEmpty()
         .isLength({ min: 6 })
-        .withMessage('Password must be at least  6 characters long')
-    ]
+        .withMessage('Password must contain at least 6 characters').matches(/\d/).withMessage('password must contain a number')
+    ],
+    validEmail: [check('email')
+    .isEmail()
+    .withMessage('Must be a valid email address')]
 }
