@@ -443,6 +443,7 @@ const addTransaction = async (req, res) => {
    
     try {
         await query('START TRANSACTION')
+        if(!data.token && !data.gudang_id && !data.shipping_to && !data.shipping_rates && !data.data) throw new Error('data not complete')
         const dataUser = await query(queryCheckUserIdQuery, users_id)
         .catch(error => {
             throw error
@@ -588,6 +589,36 @@ const getSimilarProduct = async(req, res) => {
     }
 }
 
+const addReviewController = async(req, res) => {
+    let data = req.body
+    let users_id = req.dataToken.id
+
+    let dataToInsert = {
+        users_id : users_id,
+        rating : data.rating,
+        review : data.review,
+        products_id : data.products_id
+    }
+    let queryAddProduct = `insert into product_review set ?`
+    try {
+        if(!data.token && !data.rating && !data.review && !data.products_id) throw new Error('data not complete')
+
+        const resultAdd = await query(queryAddProduct, dataToInsert)
+        .catch(error => {
+            throw error
+        })
+        res.send({
+            error : false,
+            message : 'add review succes'
+        })
+    } catch (error) {
+        res.send({
+            error : true,
+            message : error.message
+        })
+    }
+}
+
 module.exports = {
     getFilter,
     getProductByCategory,
@@ -599,7 +630,8 @@ module.exports = {
     deleteCart,
     updateQty,
     addTransaction,
-    getSimilarProduct
+    getSimilarProduct,
+    addReviewController
 }
 
 
