@@ -5,46 +5,11 @@ const query = require('./../database/mysqlAsync')
 const db = require('./../database/mysql')
 const { default: Axios } = require('axios')
 const sort = require('../helpers/Sort')
+const fs = require('fs')
+const handlebars = require('handlebars')
+const moment = require('moment')
+const transporter = require('../helpers/transporter')
 
-const getAllProduct = async (req, res) => {
-    let getAllProductQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount,pr.rating, p.is_flash_sale, group_concat(distinct(ip.url)) as url  ,p.name, c.category_name,c.id as category_id, min(vp.price) as price,  b.brands_name from products p
-    join variant_product vp on vp.products_id = p.id
-    join brands b on b.id = p.brands_id
-    join stock s on s.variant_product_id = vp.id
-    join category c on c.id = p.category_id
-    join image_product ip on ip.products_id = p.id
-    left join product_review pr on pr.products_id = p.id
-    group by p.id
-    having stock_all_gudang > 0;`
-
-    try {
-        const allProduct = await query(getAllProductQuery)
-
-        let findDuplicates = arr => arr.filter((item, index) => arr.indexOf(item) != index)
-        
-        let arrCategory = allProduct.map((val,index) => {
-            return val.category_name
-        })
-        let arrBrands = allProduct.map((val, index) => {
-            return val.brands_name
-        })
-
-        let category = [...new Set(findDuplicates(arrCategory))]
-        let brands = [...new Set(findDuplicates(arrBrands))]
-        
-        res.send({
-            error : false,
-            allProduct,
-            category,
-            brands
-        })
-    } catch (error) {
-        res.send({
-            error: true,
-            message : error.message
-        })
-    }
-}
 
 const getFilter = async(req, res) => {
     let brandsQuery = 'select * from brands'
@@ -80,6 +45,7 @@ const getProductByCategory = async(req, res) => {
     let filter = req.body
     let conditions = categoryFilter(filter)
 
+
     // let page = parseInt(req.query.page) 
     // let limit = parseInt(req.query.limit) 
     // let startIndex = (page - 1) * limit // 1 * 10 = 10
@@ -97,6 +63,8 @@ const getProductByCategory = async(req, res) => {
         
     // // }
 
+    let order = sort(req.query.sort)
+
     let getProductCategoryQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount, pr.rating, 
     pr.id as review_id, p.is_flash_sale, group_concat(distinct(ip.url)) as url , p.name, c.category_name, c.id as category_id ,
     min(vp.price) as price, b.brands_name, b.id as brand_id from products p
@@ -107,7 +75,8 @@ const getProductByCategory = async(req, res) => {
     join image_product ip on ip.products_id = p.id
     left join product_review pr on pr.products_id = p.id
     group by p.id
-    having stock_all_gudang > 0 and ${conditions.where};`
+    having stock_all_gudang > 0 and ${conditions.where}
+    ${order};`
 
     try {
         let filterCategory = await query(getProductCategoryQuery)
@@ -130,8 +99,7 @@ const getProductByMultipleCategory = async(req, res) => {
     let conditions = buildConditions(filter)
     let order = sort(req.query.sort)
 
-    console.log(order)
-    
+    console.log(conditions)
 
     let getProductMultipleCategoryQuery = `select p.id, sum(s.stock_customer) as stock_all_gudang , p.discount, pr.rating, pr.id as review_id, p.is_flash_sale, group_concat(distinct(ip.url)) as url  ,p.name, c.category_name, c.id as category_id ,min(vp.price) as price, b.brands_name, b.id as brand_id from products p
     join variant_product vp on vp.products_id = p.id
@@ -244,6 +212,7 @@ const getEstimatedOngkir = (req, res) => {
     where users_id = ${users_id} and is_main_address = 1`, (err, result) => {
         try {
             if(err) throw err
+            if(result.length === 0) throw new Error('User belum memiliki alamat')
             let dataUser = result[0]
             db.query(`SELECT * , (3956 * 2 * ASIN(SQRT( POWER(SIN(( ${dataUser.latUser} - latGudang) *  pi()/180 / 2), 2) +COS( ${dataUser.latUser} * pi()/180) * COS(latGudang * pi()/180) * POWER(SIN(( ${dataUser.longUser} - longGudang) * pi()/180 / 2), 2) ))) as distance  
             from gudang  
@@ -544,12 +513,32 @@ const addTransaction = async (req, res) => {
             throw error
         })
 
+        // send email to user
+        fs.readFile('/Users/macbookpro/Documents/Purwadhika/backupProjectAkhir/project-akhir-server/template/emailConfirmation.html',{encoding :'utf-8'}, (err, file)=> {
+            if(err) throw err
+            const template = handlebars.compile(file)
+            const hasilTemplating = template({
+                total_amount : (parseInt(data.total_amount)).toLocaleString('id-ID'), 
+                exipred : moment(new Date()).add(1, 'hour').format('lll'),
+                link : 'http://localhost:3000/checkout-form/' + transaction_id
+            })
+            // send email confirm jika berhasil store ke database
+            transporter.sendMail({
+                from : "admin",
+                subject : "thankyou for order",
+                to : dataUser[0].email ,
+                html : hasilTemplating
+            })
+            .then((respon) => {
+            })
+        })
+
         // console.log(resultStoreToTransactionDetail)
-         await query("COMMIT");
+        await query("COMMIT");
          
         res.send({
             error : false,
-            message : 'Add to Transaction Success',
+            message : 'Add to Transaction Success email already send',
             // dataToInsert
         })
        
@@ -563,8 +552,43 @@ const addTransaction = async (req, res) => {
     }
 }
 
+const getSimilarProduct = async(req, res) => {
+    let brands_id = req.params.id
+
+    try {
+        const getIdBrand = await query(`select brands_id from products
+        where id = ?;`, brands_id)
+        .catch(error => {
+            throw error
+        })
+
+        if(getIdBrand.length === 0) throw new Error('id product not found')
+
+        const similarProductData = await query(`select p.id,brands_id,price, sum(s.stock_customer) as stock_all_gudang , p.discount, p.name, url, brands_name from products p
+        join variant_product vp on vp.products_id = p.id
+        join brands b on b.id = p.brands_id
+        join stock s on s.variant_product_id = vp.id
+        join image_product ip on ip.products_id = p.id
+        group by p.id
+        having stock_all_gudang > 0 and p.brands_id = ${getIdBrand[0].brands_id} and p.id <> ${brands_id} 
+        limit 4`)
+        .catch(error => {
+            throw error
+        })
+
+        res.send({
+            error : false,
+            similarProductData
+        })
+    } catch (error) {
+        res.send({
+            error : true,
+            message : error.message
+        })
+    }
+}
+
 module.exports = {
-    getAllProduct,
     getFilter,
     getProductByCategory,
     getProductDetail,
@@ -574,8 +598,8 @@ module.exports = {
     addCart,
     deleteCart,
     updateQty,
-    addTransaction
-
+    addTransaction,
+    getSimilarProduct
 }
 
 
