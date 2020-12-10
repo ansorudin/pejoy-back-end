@@ -144,6 +144,7 @@ const getProductDetail = async(req, res) => {
     where products_id = ?
     group by vp.id;`
 
+    
     try {
         const productInformation = await query(productByIdQuery, id)
         const productReview = await query(productReviewQuery, id)
@@ -438,7 +439,7 @@ const addTransaction = async (req, res) => {
     
     // store to Transaction Detail
     let storeToDetailTransactionQuery = `
-    INSERT INTO transaction_detail (product_name, product_price, qty, url, transaction_id) VALUES ?`
+    INSERT INTO transaction_detail (product_name, product_price, qty, url, transaction_id, variant_product_id, gudang_id) VALUES ?`
 
    
     try {
@@ -449,6 +450,7 @@ const addTransaction = async (req, res) => {
             throw error
         })
         if(dataUser.length === 0) throw new Error('User not Found')
+        
 
         const checkStockFromCart = await query(checkStockQuery, dataUser[0].id)
         .catch(error => {
@@ -467,9 +469,11 @@ const addTransaction = async (req, res) => {
         
         let dataToInsert = []
         let transaction_id = resultStoreToTransaction.insertId
+        let gudang_id = data.gudang_id
         data.data.forEach((val, i) => {
-            dataToInsert.push([val.product_name, val.product_price, val.qty, val.url, transaction_id])
+            dataToInsert.push([val.product_name, val.product_price, val.qty, val.url, transaction_id, val.variant_product_id, gudang_id])
         })
+        
         const resultStoreToTransactionDetail = await query(storeToDetailTransactionQuery, [dataToInsert] )
         .catch(error => {
             throw error
@@ -619,6 +623,29 @@ const addReviewController = async(req, res) => {
     }
 }
 
+const getStockSetiapGudang = async(req, res) => {
+    let variant_product_id = req.params.id
+    
+    let stockSetiapGudang = `select stock_customer, city_gudang from stock s
+    join gudang g on s.gudang_id = g.id
+    where variant_product_id = ?;`
+
+    try {
+        const dataStock = await query(stockSetiapGudang, variant_product_id)
+
+        res.send({
+            error : false,
+            dataStock
+        })
+    } catch (error) {
+        res.send({
+            error : true,
+            message : error.message
+        })
+    }
+
+}
+
 module.exports = {
     getFilter,
     getProductByCategory,
@@ -631,7 +658,8 @@ module.exports = {
     updateQty,
     addTransaction,
     getSimilarProduct,
-    addReviewController
+    addReviewController,
+    getStockSetiapGudang
 }
 
 

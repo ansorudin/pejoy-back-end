@@ -34,7 +34,7 @@ module.exports = {
         console.log(data)
 
         let getTransactionsQuery = `SELECT t.id, p.id AS product_id, td.variant_product_id, b.brands_name, td.product_name, td.product_price, td.qty, 
-        g.id AS gudang_id, td.image_product AS image_product, td.shipping_address, st.date AS transaction_date,
+        g.id AS gudang_id, td.url AS image_product, td.shipping_address, st.date AS transaction_date,
         st.status_name_id, sn.name AS status, u.id AS users_id FROM transaction_detail td
         JOIN variant_product vp ON td.variant_product_id = vp.id
         JOIN products p ON vp.products_id = p.id
@@ -44,7 +44,7 @@ module.exports = {
         JOIN status_name sn ON st.status_name_id = sn.id
         JOIN gudang g ON td.gudang_id = g.id
         JOIN users u ON t.users_id = u.id
-        WHERE u.id = ? AND st.status_name_id = ? AND st.is_done = 1`
+        WHERE u.id = ? AND st.status_name_id = ? AND st.is_done = 0`
 
         let getHistoryTransactionsQuery = `SELECT st.date AS transaction_date, sn.name AS status_name FROM status_transaction st
         JOIN transaction t ON st.transaction_id = t.id
@@ -133,7 +133,7 @@ module.exports = {
         let updateStatusTransactionQuery = `INSERT INTO status_transaction SET ?`
         let updateLastStatusTransactionQuery = `UPDATE status_transaction SET is_done = 0 WHERE transaction_id = ? AND status_name_id = 3`
         let getTransactionsQuery = `SELECT t.id, p.id AS product_id, td.variant_product_id, b.brands_name, td.product_name, td.product_price, td.qty, 
-        g.id AS gudang_id, td.image_product AS image_product, td.shipping_address, st.date AS transaction_date,
+        g.id AS gudang_id, td.url AS image_product, td.shipping_address, st.date AS transaction_date,
         st.status_name_id, sn.name AS status, u.id AS users_id FROM transaction_detail td
         JOIN variant_product vp ON td.variant_product_id = vp.id
         JOIN products p ON vp.products_id = p.id
@@ -143,7 +143,7 @@ module.exports = {
         JOIN status_name sn ON st.status_name_id = sn.id
         JOIN gudang g ON td.gudang_id = g.id
         JOIN users u ON t.users_id = u.id
-        WHERE u.id = ? AND st.status_name_id = 3 AND st.is_done = 1`
+        WHERE u.id = ? AND st.status_name_id = 3 AND st.is_done = 0`
 
         let getHistoryTransactionsQuery = `SELECT st.date AS transaction_date, sn.name AS status_name FROM status_transaction st
         JOIN transaction t ON st.transaction_id = t.id
@@ -266,8 +266,8 @@ module.exports = {
             phone_number: req.body.phone_number,
             receiver_name: req.body.receiver_name,
             users_id: users_id,
-            longitude: req.body.longitude,
-            latitude: req.body.latitude,
+            longUser: req.body.longUser,
+            latUser: req.body.latUser,
             is_main_address: req.body.is_main_address,
             province_id: req.body.province_id,
             city_id: req.body.city_id,
@@ -275,7 +275,7 @@ module.exports = {
         }
        
         try {
-            if(!data.address_detail || !data.city || !data.province || !data.phone_number || !data.receiver_name || !data.users_id || !data.longitude || !data.latitude ) throw { message: 'Data Must Be Filled' }
+            if(!data.address_detail || !data.city || !data.province || !data.phone_number || !data.receiver_name || !data.users_id || !data.longUser || !data.latUser ) throw { message: 'Data Must Be Filled' }
 
                 if(data.is_main_address === 1){
                     let findMainAddressQuery = 'SELECT * FROM shipping_address WHERE is_main_address = 1'
@@ -709,7 +709,7 @@ module.exports = {
         const data = req.body
 
         var sqlQuery1 = `SELECT t.id, p.id AS product_id, td.variant_product_id, b.brands_name, td.product_name, td.product_price, td.qty, 
-        g.id AS gudang_id, td.image_product AS image_product, td.shipping_address, st.date AS transaction_date,
+        g.id AS gudang_id, td.url AS image_product, td.shipping_address, st.date AS transaction_date,
         st.status_name_id, sn.name AS status FROM transaction_detail td
         JOIN variant_product vp ON td.variant_product_id = vp.id
         JOIN products p ON vp.products_id = p.id
@@ -718,7 +718,7 @@ module.exports = {
         JOIN status_transaction st ON td.transaction_id = st.transaction_id
         JOIN status_name sn ON st.status_name_id = sn.id
         JOIN gudang g ON td.gudang_id = g.id
-        WHERE st.status_name_id = ? AND st.is_done = 1`
+        WHERE st.status_name_id = ? AND st.is_done = 0`
         db.query(sqlQuery1, data.status_name_id, (err, resultQuery1) => {
             try {
                 if(err) throw err
@@ -846,7 +846,7 @@ module.exports = {
                                 }
 
                                 var sqlQuery3 = `SELECT t.id, p.id AS product_id, td.variant_product_id, b.brands_name, td.product_name, td.product_price, td.qty, 
-                                g.id AS gudang_id, td.image_product AS image_product, td.shipping_address, st.date AS transaction_date,
+                                g.id AS gudang_id, td.url AS image_product, td.shipping_address, st.date AS transaction_date,
                                 st.status_name_id, sn.name AS status FROM transaction_detail td
                                 JOIN variant_product vp ON td.variant_product_id = vp.id
                                 JOIN products p ON vp.products_id = p.id
@@ -855,7 +855,7 @@ module.exports = {
                                 JOIN status_transaction st ON td.transaction_id = st.transaction_id
                                 JOIN status_name sn ON st.status_name_id = sn.id
                                 JOIN gudang g ON td.gudang_id = g.id
-                                WHERE st.status_name_id = 2 AND st.is_done = 1`
+                                WHERE st.status_name_id = 2 AND st.is_done = 0`
                                 db.query(sqlQuery3, (err, resultQuery3) => {
                                     try {
                                         if(err) throw err
@@ -1010,18 +1010,18 @@ module.exports = {
         const eventName = String(data.eventDate).split(' ')[0].replace(/-/g, '_')
 
         var sqlQuery1 = `CREATE EVENT flash_sale_event_${eventName}
-        ON SCHEDULE AT '${data.eventDate} 11:40:00'
+        ON SCHEDULE AT '${data.eventDate} 13:45:00'
         DO
-            UPDATE products SET is_flash_sale = 1, expired_flash_sale = '${data.eventDate} 11:40:00' + INTERVAL 5 MINUTE WHERE id IN (${data.products_id});`
+            UPDATE products SET is_flash_sale = 1, expired_flash_sale = '${data.eventDate} 13:45:00' + INTERVAL 5 MINUTE WHERE id IN (${data.products_id});`
         
         db.query(sqlQuery1, (err, resultQuery1) => {
             try {
                 if(err) throw err
 
                 var sqlQuery2 = `CREATE EVENT flash_sale_event_ended_${eventName}
-                ON SCHEDULE AT '${data.eventDate} 11:40:00' + INTERVAL 5 MINUTE
+                ON SCHEDULE AT '${data.eventDate} 13:45:00' + INTERVAL 5 MINUTE
                 DO
-                    UPDATE products SET is_flash_sale = 0, expired_flash_sale = null WHERE expired_flash_sale = '${data.eventDate} 11:40:00' + INTERVAL 5 MINUTE;`
+                    UPDATE products SET is_flash_sale = 0, expired_flash_sale = null WHERE expired_flash_sale = '${data.eventDate} 13:45:00' + INTERVAL 5 MINUTE;`
                 
                 db.query(sqlQuery2, (err, resultQuery2) => {
                     try {
