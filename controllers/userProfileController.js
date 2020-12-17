@@ -46,7 +46,7 @@ module.exports = {
         JOIN users u ON t.users_id = u.id
         WHERE u.id = ? AND st.status_name_id = ? AND st.is_done = 0`
 
-        let getHistoryTransactionsQuery = `SELECT st.date AS transaction_date, sn.name AS status_name FROM status_transaction st
+        let getHistoryTransactionsQuery = `SELECT t.id, st.date AS transaction_date, sn.name AS status_name, is_done FROM status_transaction st
         JOIN transaction t ON st.transaction_id = t.id
         JOIN users u ON t.users_id = u.id
         JOIN status_name sn ON st.status_name_id = sn.id
@@ -99,7 +99,26 @@ module.exports = {
                                 image_product: value1.image_product,
                                 gudang_id: value1.gudang_id
                             }
-                        ]
+                        ],
+                        history_transaction: []
+                    })
+                }
+            })
+
+            dataHistoryTransactionsUsers.forEach((value1, index1) => {
+                let idTransactionExist =  null
+
+                mapDataTransactionsUsers.forEach((find, findIndex) => {
+                    if(find.id === value1.id){
+                        idTransactionExist = findIndex
+                    }
+                })
+
+                if(idTransactionExist !== null){
+                    mapDataTransactionsUsers[idTransactionExist].history_transaction.push({
+                        transaction_date: value1.transaction_date,
+                        status_name: value1.status_name,
+                        is_done: value1.is_done
                     })
                 }
             })
@@ -107,10 +126,10 @@ module.exports = {
             res.send({
                 error: false,
                 message: 'Get Data Transactions Users Success',
-                mapDataTransactionsUsers,
-                dataHistoryTransactionsUsers
+                mapDataTransactionsUsers
             })
         } catch (error) {
+            console.log(error)
             res.send({
                 error: true,
                 message: error.message
@@ -131,7 +150,7 @@ module.exports = {
 
 
         let updateStatusTransactionQuery = `INSERT INTO status_transaction SET ?`
-        let updateLastStatusTransactionQuery = `UPDATE status_transaction SET is_done = 0 WHERE transaction_id = ? AND status_name_id = 3`
+        let updateLastStatusTransactionQuery = `UPDATE status_transaction SET is_done = 1 WHERE transaction_id = ? AND status_name_id = 3`
         let getTransactionsQuery = `SELECT t.id, p.id AS product_id, td.variant_product_id, b.brands_name, td.product_name, td.product_price, td.qty, 
         g.id AS gudang_id, td.url AS image_product, td.shipping_address, st.date AS transaction_date,
         st.status_name_id, sn.name AS status, u.id AS users_id FROM transaction_detail td
@@ -143,7 +162,7 @@ module.exports = {
         JOIN status_name sn ON st.status_name_id = sn.id
         JOIN gudang g ON td.gudang_id = g.id
         JOIN users u ON t.users_id = u.id
-        WHERE u.id = ? AND st.status_name_id = 3 AND st.is_done = 0`
+        WHERE u.id = ? AND st.status_name_id = 3 AND st.is_done = 1`
 
         let getHistoryTransactionsQuery = `SELECT st.date AS transaction_date, sn.name AS status_name FROM status_transaction st
         JOIN transaction t ON st.transaction_id = t.id
@@ -658,9 +677,9 @@ module.exports = {
     },
 
     getDataStatistic: async (req, res) => {
-        let getTransactionsSuccessQuery = `SELECT COUNT(*) AS transactions_success FROM status_transaction WHERE status_name_id = 4 AND is_done = 1`
+        let getTransactionsSuccessQuery = `SELECT COUNT(*) AS transactions_success FROM status_transaction WHERE status_name_id = 4 AND is_done = 0`
 
-        let getTransactionsPendingQuery = `SELECT COUNT(*) AS transactions_pending FROM status_transaction WHERE status_name_id != 4 AND is_done = 1`
+        let getTransactionsPendingQuery = `SELECT COUNT(*) AS transactions_pending FROM status_transaction WHERE status_name_id != 4 AND is_done = 0`
 
         let getActiveUsersQuery = `SELECT count(DISTINCT users_id) AS active_user FROM transaction`
 
@@ -677,7 +696,7 @@ module.exports = {
         JOIN transaction t ON td.transaction_id = t.id
         JOIN variant_product vp ON td.variant_product_id = vp.id
         JOIN status_transaction st ON t.id = st.transaction_id
-        WHERE status_name_id != 4 AND is_done = 1`
+        WHERE status_name_id != 4 AND is_done = 0`
 
         try {
             let getTransactionsSuccess = await query(getTransactionsSuccessQuery)
@@ -803,7 +822,7 @@ module.exports = {
             {
                 transaction_id: data1, 
                 status_name_id: 3,
-                is_done: 1
+                is_done: 0
             }
         ]
         let data2 = req.body[1] // Data To Update Stock
@@ -837,7 +856,7 @@ module.exports = {
                             })
                         }
 
-                        var sqlQuery2 = `UPDATE status_transaction SET is_done = 0 WHERE transaction_id = ? AND status_name_id = 2`
+                        var sqlQuery2 = `UPDATE status_transaction SET is_done = 1 WHERE transaction_id = ? AND status_name_id = 2`
                             db.query(sqlQuery2, data1, (err, resultSqlQuery2) => {
                                 if(err){ 
                                     return db.rollback(() => {
