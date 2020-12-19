@@ -5,6 +5,7 @@ const jwtVerify = require('../middleware/jwt')
 
 Router.post('/profile', jwtVerify, userProfileController.getDataUsers)
 Router.post('/transactions', jwtVerify, userProfileController.getDataTransactionsUsers)
+Router.post('/expired-transaction', userProfileController.onExpiredTransaction)
 Router.post('/confirm-transaction', jwtVerify, userProfileController.confirmMyTransaction)
 Router.post('/shipping-address', jwtVerify, userProfileController.getUserShippingAddress)
 Router.post('/shipping-address/add-address', jwtVerify, userProfileController.addShippingAddress)

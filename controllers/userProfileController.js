@@ -33,9 +33,9 @@ module.exports = {
         console.log(users_id)
         console.log(data)
 
-        let getTransactionsQuery = `SELECT t.id, p.id AS product_id, td.variant_product_id, b.brands_name, td.product_name, td.product_price, td.qty, 
-        g.id AS gudang_id, td.url AS image_product, td.shipping_address, st.date AS transaction_date,
-        st.status_name_id, sn.name AS status, u.id AS users_id FROM transaction_detail td
+        let getTransactionsQuery = `SELECT t.id, p.id AS product_id, t.total_amount, t.shipping_rates, t.shipping_to, td.variant_product_id, b.brands_name, td.product_name, td.product_price, td.qty, 
+        g.id AS gudang_id, td.url AS image_product, td.shipping_address, st.date AS transaction_date, t.created_at, t.expired_at,
+        st.status_name_id, sn.name AS status, st.is_done, u.id AS users_id FROM transaction_detail td
         JOIN variant_product vp ON td.variant_product_id = vp.id
         JOIN products p ON vp.products_id = p.id
         JOIN brands b ON p.brands_id = b.id
@@ -44,7 +44,7 @@ module.exports = {
         JOIN status_name sn ON st.status_name_id = sn.id
         JOIN gudang g ON td.gudang_id = g.id
         JOIN users u ON t.users_id = u.id
-        WHERE u.id = ? AND st.status_name_id = ? AND st.is_done = 0`
+        WHERE u.id = ? AND st.status_name_id = ? AND st.is_done != 1`
 
         let getHistoryTransactionsQuery = `SELECT t.id, st.date AS transaction_date, sn.name AS status_name, is_done FROM status_transaction st
         JOIN transaction t ON st.transaction_id = t.id
@@ -68,7 +68,6 @@ module.exports = {
                 })
 
                 if(idTransactionExist !== null){
-                    mapDataTransactionsUsers[idTransactionExist].total += value1.qty * value1.product_price
                     mapDataTransactionsUsers[idTransactionExist].detail_transaction.push({
                         product_id: value1.product_id,
                         variant_product_id: value1.variant_product_id,
@@ -80,13 +79,22 @@ module.exports = {
                         image_product: value1.image_product,
                         gudang_id: value1.gudang_id
                     })
+                    mapDataTransactionsUsers[idTransactionExist].detail_transaction_to_update.push({
+                        qty: value1.qty,
+                        gudang_id: value1.gudang_id,
+                        variant_product_id: value1.variant_product_id
+                    })
                 }else{
                     mapDataTransactionsUsers.push({
                         id: value1.id,
-                        shipping_address: value1.shipping_address,
+                        shipping_address: value1.shipping_to,
                         transaction_date: value1.transaction_date,
+                        created_at: value1.created_at,
+                        expired_at: value1.expired_at,
                         status: value1.status,
-                        total: value1.qty * value1.product_price,
+                        is_done: value1.is_done,
+                        shipping_rates: value1.shipping_rates,
+                        total: value1.total_amount + value1.shipping_rates,
                         detail_transaction: [
                             {
                                 product_id: value1.product_id,
@@ -98,6 +106,13 @@ module.exports = {
                                 total_product: value1.qty * value1.product_price,
                                 image_product: value1.image_product,
                                 gudang_id: value1.gudang_id
+                            }
+                        ],
+                        detail_transaction_to_update: [
+                            {
+                                qty: value1.qty,
+                                gudang_id: value1.gudang_id,
+                                variant_product_id: value1.variant_product_id
                             }
                         ],
                         history_transaction: []
@@ -135,6 +150,62 @@ module.exports = {
                 message: error.message
             })
         }
+    },
+
+    onExpiredTransaction: (req, res) => {
+        let data1 = req.body[0] // Data To Update Status Transaction
+        let data2 = req.body[1] // Data To Update Stock
+
+        db.beginTransaction((err) => {
+            Promise.all(data2.map((value, index) => {
+                var promise = new Promise((resolve, reject) => {
+                    db.query('UPDATE stock SET stock_customer = stock_customer + ? WHERE gudang_id = ? AND variant_product_id = ?', [data2[index].qty, data2[index].gudang_id, data2[index].variant_product_id], (err, result) => {
+                        try {
+                            if(err){ 
+                                return db.rollback(() => {
+                                    throw err
+                                })
+                            }
+                            
+                        } catch (error) {
+                            res.send({
+                                error: true,
+                                message: error.message
+                            })
+                        }
+                    })
+                })
+            })).then((response) => {
+                var sqlQuery1 = `UPDATE status_transaction SET is_done = 3 WHERE transaction_id = ? AND status_name_id = 1`
+                db.query(sqlQuery1, data1, (err, resultSqlQuery1) => {
+                    try {
+                        db.commit((err) => {
+                            if(err){ 
+                                return db.rollback(() => {
+                                    throw err
+                                })
+                            }
+                            
+                            res.send({
+                                error: false, 
+                                message: 'Transaction ' + data1 + ' Has Been Expired'
+                            })
+                        })
+                    } catch (error) {
+                        res.send({
+                            error: true,
+                            message : error.message
+                        })
+                    }
+                })
+
+            }).catch((error) => {
+                res.send({
+                    error: true,
+                    message: error.message
+                })
+            })
+        })
     },
 
     confirmMyTransaction: async (req, res) => {
