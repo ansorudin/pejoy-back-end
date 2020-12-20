@@ -2,21 +2,25 @@ const Axios = require('axios');
 const db = require('./../database/mysql');
 const query = require('./../database/mysqlAsync');;
 const jwt = require('jsonwebtoken');
+const multer = require('multer')
+
+const singleUpload = require('./../helpers/SingleUpload')()
 
 module.exports = {
 
-    getUserCheckoutShippingAddress: (req, res) => {
-        const data = req.body
-
-        var sqlQuery = 'SELECT address_detail as Alamat, city as Kota, province as Provinsi, phone_number as Nomor_Telepon, receiver_name as Nama_Penerima FROM shipping_address WHERE users_id = ? And is_main_address = 1'
-        db.query(sqlQuery, data.users_id, (err, result) => {
+    getUsersDataTransactionsToCheckout: (req, res) => {
+        let transaction_id = req.body.transaction_id
+        
+        db.query(`SELECT t.id, t.created_at, t.expired_at, td.product_name, td.product_price, td.qty, t.shipping_rates, t.total_amount, t.shipping_to FROM transaction t
+        JOIN transaction_detail td ON t.id = td.transaction_id
+        WHERE t.id = ?;`, transaction_id, (err, result) => {
             try {
                 if(err) throw err
                 
                 res.send({
                     error: false,
-                    message: 'Get Users Shipping Address Success',
-                    data: result
+                    message : 'Get Data Transactions To Checkout Success',
+                    data : result
                 })
             } catch (error) {
                 res.send({
@@ -27,28 +31,71 @@ module.exports = {
         })
     },
 
-    geMyOrders: (req, res) => {
-        const data = req.body
-
-        var sqlQuery = 'Select total_amount as Sub_total, shipping_rates as Shipping_Rates, (total_amount + shipping_rates) as Total from transaction where id = ?'
-        db.query(sqlQuery, data.users_id, (err, result) => {
+    onPaymentUsersTransaction: (req, res) => {
+        // Step1. Upload Image to Storage (API)
+        singleUpload(req, res, (err) => {
             try {
                 if(err) throw err
-                
-                res.send({
-                    error: false,
-                    message: 'Get Users Orders Success',
-                    data: result
+
+                // Step2. Request Validation for Filtering & Filtering If File Does Not Exist
+                if(req.filteringValidation) throw { message : req.filteringValidation }
+                if(req.file === undefined) throw { message : 'File Not Found'}
+    
+                // Step3. Get Image Path
+                var imagePath = 'http://localhost:2000/' + req.file.path
+    
+                // Step4. Get Text Data
+                var data = req.body.data
+                try {
+                    var dataParsed = JSON.parse(data)
+                    console.log(dataParsed)
+                } catch (error) {
+                    console.log(error)
+                }
+
+                db.query('UPDATE status_transaction SET is_done = 1 WHERE transaction_id = ? AND status_name_id = 1;', dataParsed.transaction_id, (err, result) => {
+                    try {
+                        if(err) throw err
+
+                        db.query('INSERT INTO status_transaction SET ?;', {transaction_id: dataParsed.transaction_id, status_name_id: 2, is_done: 0}, (err, result) => {
+                            try {
+                                if(err) throw err
+                                
+                                db.query('UPDATE transaction SET evidence = ? WHERE id = ?;', [imagePath, dataParsed.transaction_id], (err, result1) => {
+                                    try {
+                                        if(err) throw err
+                                        console.log(result1)
+                                        res.json({
+                                            error : false, 
+                                            message : 'Payment Success'
+                                        })
+                                    } catch (error) {
+                                        console.log(error)
+                                    }
+                                })
+                            } catch (error) {
+                                res.json({
+                                    error : true,
+                                    message : 'Error When Update Paid Status',
+                                    detail : error
+                                })
+                            }
+                        })
+                    } catch (error) {
+                        res.json({
+                            error : true, 
+                            message : 'Error When Update Waiting For Payment Status',
+                            detail : error
+                        })
+                    }
                 })
             } catch (error) {
-                res.send({
-                    error: true,
+                res.json({
+                    error : true, 
                     message : error.message
                 })
             }
         })
-    },
-   
-
+    }
 
 }
