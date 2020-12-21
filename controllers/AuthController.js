@@ -46,15 +46,17 @@ const RegisterComtroller = async (req, res) => {
                 throw error
             })
 
-            const token = jwt.sign({id:resultToUsers.insertId},process.env.SECRET_KEY,{expiresIn:'1m'})
 
-            fs.readFile('/Users/macbookpro/Documents/Purwadhika/backupProjectAkhir2/project-akhir-server/template/confirmation.html',
+            const token = jwt.sign({id:resultToUsers.insertId},process.env.SECRET_KEY,{expiresIn:'30d'})
+            const tokenForVerified = jwt.sign({password : data.password},process.env.SECRET_KEY,{expiresIn:'1d'})
+
+            fs.readFile('/Users/macbookpro/Documents/Purwadhika/pejoy/pejoy-back-end/template/confirmation.html',
             {encoding : 'utf-8'}, (err, file) => {
                 if(err) throw err
                 const template = handlebars.compile(file)
                 const resultTemplate = template({
                     userName : data.username,
-                    link : `http://localhost:3000/verification?id=` + token
+                    link : `http://localhost:3000/verification?id=` + tokenForVerified
                 })
                 transporter.sendMail({
                     from : "admin",
@@ -66,7 +68,8 @@ const RegisterComtroller = async (req, res) => {
                     res.send({
                         error : false,
                         message : "register Succes, email alerady sent !",
-                        token : token
+                        token : token,
+                        role : 0
                     })
                 })
                 .catch((err) => {
@@ -98,7 +101,7 @@ const LoginController = async (req, res) => {
 
     const passwordHashed = hashPassword(data.password)
     data.password = passwordHashed
-    const userLoginQuery = `select * from users where email = ? and password = ?`
+    const userLoginQuery = 'select * from users where email = ? and password = ?;'
 
     try {
         if(!data.email || !data.password) throw 'Data not complete'
@@ -107,8 +110,8 @@ const LoginController = async (req, res) => {
             throw error
         })
 
-        if(resultUserLogin.length === 0) throw 'Email tidak terdaftar'
-        const token = jwt.sign({id:resultUserLogin[0].id},process.env.SECRET_KEY,{expiresIn:'1m'})
+        if(resultUserLogin.length === 0) throw 'Email tidak terdaftar atau Password salah!'
+        const token = jwt.sign({id:resultUserLogin[0].id},process.env.SECRET_KEY,{expiresIn:'30d'})
         res.send({
             error : false,
             message : 'Login succes',
@@ -146,7 +149,7 @@ const GoogleLogin = (req, res) => {
                             if(err) throw err
                             if(result.length !== 0){
                                 // if user exist
-                                const token = jwt.sign({id:result[0].id},process.env.SECRET_KEY,{expiresIn:'1m'})
+                                const token = jwt.sign({id:result[0].id},process.env.SECRET_KEY,{expiresIn:'30d'})
                                 res.send({
                                     error : false,
                                     message : 'Login succes',
@@ -166,7 +169,7 @@ const GoogleLogin = (req, res) => {
                                         db.query('insert into users set ?', {email : email, password : password, user_detail_id : resultDetail.insertId }, (err, resultUser) => {
                                             try {
                                                 if(err) throw err
-                                                const token = jwt.sign({id:resultUser.insertId},process.env.SECRET_KEY,{expiresIn:'1m'})
+                                                const token = jwt.sign({id:resultUser.insertId},process.env.SECRET_KEY,{expiresIn:'30d'})
                                                 res.send({
                                                     error : false,
                                                     message : 'Login succes',
@@ -229,7 +232,7 @@ const FacebookLogin = (req, res) => {
                     if(err) throw err
                     if(result.length !== 0){
                         // user exist
-                        const token = jwt.sign({id:result[0].id},process.env.SECRET_KEY,{expiresIn:'1m'})
+                        const token = jwt.sign({id:result[0].id},process.env.SECRET_KEY,{expiresIn:'30d'})
                         res.send({
                             error : false,
                             message : 'Login succes',
@@ -247,7 +250,7 @@ const FacebookLogin = (req, res) => {
                                 db.query('insert into users set ?', {email : email, password : password, user_detail_id : resultDetail.insertId }, (err, resultUser) => {
                                     try {
                                         if(err) throw err
-                                        const token = jwt.sign({id:resultUser.insertId},process.env.SECRET_KEY,{expiresIn:'1m'})
+                                        const token = jwt.sign({id:resultUser.insertId},process.env.SECRET_KEY,{expiresIn:'30d'})
                                         res.send({
                                             error : false,
                                             message : 'Login with Facebook succes',
@@ -286,12 +289,111 @@ const FacebookLogin = (req, res) => {
             })
         })
     )
-
 }
+
+const ForgotPassword = (req, res) => {
+    const {email} = req.body
+
+    try {
+        if(!email) throw new Error('Email tidak boleh kosong')
+        db.query('select * from users where email = ?', email, (err, result) => {
+            try {
+                if(err) throw err
+                if(result.length === 0) throw 'Email tidak terdaftar'
+
+                const tokenForgotPassword = jwt.sign({email : email},process.env.SECRET_KEY,{expiresIn:'4h'})
+
+                fs.readFile('/Users/macbookpro/Documents/Purwadhika/pejoy/pejoy-back-end/template/email.html',
+                {encoding : 'utf-8'}, (err, file) => {
+                if(err) throw err
+                const template = handlebars.compile(file)
+                const resultTemplate = template({
+                    userName : email,
+                    link : `http://localhost:3000/update-password/` + tokenForgotPassword
+                })
+                transporter.sendMail({
+                    from : "admin",
+                    subject : "email verification",
+                    to : email,
+                    html : resultTemplate
+                })
+                .then((respon) => {
+                    res.send({
+                        error : false,
+                        message : "email alerady sent !",
+                    })
+                })
+                .catch((err) => {
+                    res.send({
+                        error: true,
+                        message : err.message
+                    })
+                })
+            })
+                
+            } catch (error) {
+                res.send({
+                    error : true,
+                    message : error
+                })
+            }
+        })
+    } catch (error) {
+        res.send({
+            error : true,
+            message : error
+        })
+    }
+}
+
+const UpdatePassword = (req, res) => {
+    const {email, password} = req.body
+
+    const passwordHashed = hashPassword(password)
+    try {
+        if(!email || !password) throw 'Data not complete'
+        jwt.verify(email, process.env.SECRET_KEY, (err, dataToken) => {
+            try {
+                if(err) throw err
+                let emailUser = dataToken.email
+                db.query(`update users set password = ? where email = ?;`,[passwordHashed, emailUser], (err, result) => {
+                    try {
+                        if(err) throw err
+                        res.send({
+                            error : false,
+                            message : 'update password success'
+                        })
+                    } catch (error) {
+                        res.send({
+                            error : true,
+                            message : error
+                        })
+                    }
+                })
+            } catch (error) {
+                res.send({
+                    error : true,
+                    message : error
+                })
+            }
+        })
+
+    } catch (error) {
+        res.send({
+            error : true,
+            message : error
+        })
+    }
+
+    
+}
+
 
 module.exports = {
     RegisterComtroller,
     LoginController,
     GoogleLogin,
-    FacebookLogin
+    FacebookLogin,
+    ForgotPassword,
+    UpdatePassword
 }

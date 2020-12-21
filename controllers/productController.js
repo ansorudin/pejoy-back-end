@@ -519,7 +519,7 @@ const addTransaction = async (req, res) => {
         })
 
         // send email to user
-        fs.readFile('D:/Purwadhika/FinalProject/pejoy-back-end/template/emailConfirmation.html',{encoding :'utf-8'}, (err, file)=> {
+        fs.readFile('/Users/macbookpro/Documents/Purwadhika/pejoy/pejoy-back-end/template/emailConfirmation.html',{encoding :'utf-8'}, (err, file)=> {
             if(err) throw err
             const template = handlebars.compile(file)
             const hasilTemplating = template({
