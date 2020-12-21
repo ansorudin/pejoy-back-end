@@ -7,6 +7,7 @@ const productRouter = require('./routers/productRouter');
 const userProfileRouter = require('./routers/userProfileRouter');
 const userAuth=require('./routers/userAuth')
 const checkoutRouter=require('./routers/checkoutRouter')
+const authRouter = require('./routers/authRouter')
 
 const PORT = 2000
 
@@ -31,6 +32,8 @@ app.use('/products', productRouter)
 app.use('/member', userProfileRouter)
 // Router For Checkout
 app.use('/checkout', checkoutRouter)
+// Router for auth
+app.use('/authBaru', authRouter)
 
 app.listen(PORT, () => console.log(`API Running On Port ${PORT}`))
 

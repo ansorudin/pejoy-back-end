@@ -3,8 +3,6 @@ const jwt = require('jsonwebtoken')
 const jwtParamsVerify = (req, res, next) => {
     const token = req.params.token
 
-    
-
     jwt.verify(token, process.env.SECRET_KEY, (err, dataToken) => {
         try {
             if(err) throw err

@@ -12,7 +12,6 @@ const jwtVerify = (req, res, next) => {
     jwt.verify(token, process.env.SECRET_KEY, (err, dataToken) => {
         try {
             if(err) throw err
-            
             req.dataToken = dataToken
             next()
         } catch (error) {
