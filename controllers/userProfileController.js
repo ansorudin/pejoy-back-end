@@ -216,10 +216,6 @@ module.exports = {
             is_done: req.body.is_done
         }
 
-        console.log(users_id)
-        console.log(data)
-
-
         let updateStatusTransactionQuery = `INSERT INTO status_transaction SET ?`
         let updateLastStatusTransactionQuery = `UPDATE status_transaction SET is_done = 1 WHERE transaction_id = ? AND status_name_id = 3`
         let getTransactionsQuery = `SELECT t.id, p.id AS product_id, td.variant_product_id, b.brands_name, td.product_name, td.product_price, td.qty, 
@@ -368,8 +364,8 @@ module.exports = {
             if(!data.address_detail || !data.city || !data.province || !data.phone_number || !data.receiver_name || !data.users_id || !data.longUser || !data.latUser ) throw { message: 'Data Must Be Filled' }
 
                 if(data.is_main_address === 1){
-                    let findMainAddressQuery = 'SELECT * FROM shipping_address WHERE is_main_address = 1'
-                    const findMainAddress = await query(findMainAddressQuery)
+                    let findMainAddressQuery = 'SELECT * FROM shipping_address WHERE is_main_address = 1 and users_id = ?'
+                    const findMainAddress = await query(findMainAddressQuery, data.users_id)
     
                     if(findMainAddress.length === 1){
                         db.beginTransaction((err) => {
@@ -531,6 +527,7 @@ module.exports = {
 
     updateUsersShippingAddress: async (req, res) => {
         const data = req.body
+        console.log(data.is_main_address)
        
         try {
             if(!data.address_detail || !data.city || !data.province || !data.phone_number || !data.receiver_name || !data.users_id || !data.longitude || !data.latitude ) throw { message: 'Data Must Be Filled' }
@@ -1149,6 +1146,43 @@ module.exports = {
             }
         })
     },
+    updateShippingaddress : async (req, res) => {
+        let {id} = req.body
+        let users_id = req.dataToken.id
+
+        console.log(users_id, id)
+
+        const updateShippingAddresAll = 'update shipping_address set is_main_address = 0 where users_id = ?'
+        const updateShippingSelected = 'update shipping_address set is_main_address = 1 where id = ?'
+
+        try {
+            if(!users_id || !id) throw 'Data not complete'
+            await query('START TRANSACTION')
+            const resultQueryAll = await query(updateShippingAddresAll, users_id)
+            .catch(error => {
+                throw error
+            })
+
+            const resultQuerySelected = await query(updateShippingSelected, id)
+            .catch(error => {
+                throw error
+            })
+            await query("COMMIT");
+
+            res.send({
+                error : false,
+                message : 'Update Success'
+            })
+
+        } catch (error) {
+            await query("ROLLBACK");
+            console.log('ROLLBACK gagal update shipping address');
+            res.send({
+                error: true,
+                message : error
+            })
+        }
+    }
 
     // tryQuery: async (req, res) => {
     //     let data = [

@@ -444,12 +444,12 @@ const addTransaction = async (req, res) => {
    
     try {
         await query('START TRANSACTION')
-        if(!data.token && !data.gudang_id && !data.shipping_to && !data.shipping_rates && !data.data) throw new Error('data not complete')
+        if(!data.token && !data.gudang_id && !data.shipping_to && !data.shipping_rates && !data.data) throw 'data not complete'
         const dataUser = await query(queryCheckUserIdQuery, users_id)
         .catch(error => {
             throw error
         })
-        if(dataUser.length === 0) throw new Error('User not Found')
+        if(dataUser.length === 0) throw 'User not Found'
         
 
         const checkStockFromCart = await query(checkStockQuery, dataUser[0].id)
@@ -459,7 +459,7 @@ const addTransaction = async (req, res) => {
 
         // check qty from cart apakah ada yg melebihi stock apa engga
         checkStockFromCart.forEach((val, i) => {
-            if(val.stock < val.qty) throw new Error(`qty variant_id = ${val.variant_product_id} melebihi stock`)
+            if(val.stock < val.qty) throw `qty variant_id = ${val.variant_product_id} melebihi stock`
         })
 
         const resultStoreToTransaction = await query(storeToTransactionQuery, {users_id : dataUser[0].id, shipping_from : data.gudang_id, shipping_rates : data.shipping_rates, shipping_to : data.shipping_to, total_amount : data.total_amount })
@@ -554,6 +554,7 @@ const addTransaction = async (req, res) => {
             error : true,
             message : error.message
         })
+        console.log(error)
     }
 }
 
@@ -567,7 +568,7 @@ const getSimilarProduct = async(req, res) => {
             throw error
         })
 
-        if(getIdBrand.length === 0) throw new Error('id product not found')
+        if(getIdBrand.length === 0) throw 'id product not found'
 
         const similarProductData = await query(`select p.id,brands_id,price, sum(s.stock_customer) as stock_all_gudang , p.discount, p.name, url, brands_name from products p
         join variant_product vp on vp.products_id = p.id

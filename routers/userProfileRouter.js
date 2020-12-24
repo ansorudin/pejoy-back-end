@@ -9,6 +9,8 @@ Router.post('/expired-transaction', userProfileController.onExpiredTransaction)
 Router.post('/confirm-transaction', jwtVerify, userProfileController.confirmMyTransaction)
 Router.post('/shipping-address', jwtVerify, userProfileController.getUserShippingAddress)
 Router.post('/shipping-address/add-address', jwtVerify, userProfileController.addShippingAddress)
+Router.post('/shipping-address/edit-main-address', jwtVerify, userProfileController.updateShippingaddress)
+
 Router.post('/shipping-address/edit-address', userProfileController.getUsersShippingAddressToEdit)
 Router.post('/shipping-address/update-address', userProfileController.updateUsersShippingAddress)
 Router.delete('/shipping-address/delete-address/:token/:idAddress', userProfileController.deleteUsersShippingAddress)

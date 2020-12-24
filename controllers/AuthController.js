@@ -18,6 +18,7 @@ const RegisterComtroller = async (req, res) => {
     const userExistQuery =  'select * from users where email = ?'
     const storeToDbUser = 'insert into users set ?'
     const storeToDbDetailUser = 'insert into user_detail set ?'
+    const getDataUser = 'select * from users where id = ?'
 
     try {
         if(!data.email || !data.password || !data.username) throw 'Data not complete'
@@ -46,8 +47,13 @@ const RegisterComtroller = async (req, res) => {
                 throw error
             })
 
+            const resultGetUsers = await query(getDataUser, resultToUsers.insertId)
+            .catch(error => {
+                throw error
+            })
 
-            const token = jwt.sign({id:resultToUsers.insertId},process.env.SECRET_KEY,{expiresIn:'30d'})
+
+            const token = jwt.sign({id:resultToUsers.insertId, role : resultGetUsers[0].user_role},process.env.SECRET_KEY,{expiresIn:'30d'})
             const tokenForVerified = jwt.sign({password : data.password},process.env.SECRET_KEY,{expiresIn:'1d'})
 
             fs.readFile('/Users/macbookpro/Documents/Purwadhika/pejoy/pejoy-back-end/template/confirmation.html',
@@ -69,7 +75,7 @@ const RegisterComtroller = async (req, res) => {
                         error : false,
                         message : "register Succes, email alerady sent !",
                         token : token,
-                        role : 0
+                        role : resultGetUsers[0].user_role
                     })
                 })
                 .catch((err) => {
@@ -111,7 +117,7 @@ const LoginController = async (req, res) => {
         })
 
         if(resultUserLogin.length === 0) throw 'Email tidak terdaftar atau Password salah!'
-        const token = jwt.sign({id:resultUserLogin[0].id},process.env.SECRET_KEY,{expiresIn:'30d'})
+        const token = jwt.sign({id:resultUserLogin[0].id, role : resultUserLogin[0].user_role},process.env.SECRET_KEY,{expiresIn:'30d'})
         res.send({
             error : false,
             message : 'Login succes',
@@ -149,7 +155,7 @@ const GoogleLogin = (req, res) => {
                             if(err) throw err
                             if(result.length !== 0){
                                 // if user exist
-                                const token = jwt.sign({id:result[0].id},process.env.SECRET_KEY,{expiresIn:'30d'})
+                                const token = jwt.sign({id:result[0].id, role : result[0].user_role},process.env.SECRET_KEY,{expiresIn:'30d'})
                                 res.send({
                                     error : false,
                                     message : 'Login succes',
@@ -169,13 +175,24 @@ const GoogleLogin = (req, res) => {
                                         db.query('insert into users set ?', {email : email, password : password, user_detail_id : resultDetail.insertId }, (err, resultUser) => {
                                             try {
                                                 if(err) throw err
-                                                const token = jwt.sign({id:resultUser.insertId},process.env.SECRET_KEY,{expiresIn:'30d'})
-                                                res.send({
-                                                    error : false,
-                                                    message : 'Login succes',
-                                                    token : token
-                                                })
-        
+                                                db.query('select * from users where id = ?', resultUser.insertId, (err, result) => {
+                                                    try {
+                                                        if(err) throw err
+                                                        const token = jwt.sign({id:resultUser.insertId, role : result[0].user_role},process.env.SECRET_KEY,{expiresIn:'30d'})
+                                                        res.send({
+                                                            error : false,
+                                                            message : 'Login succes',
+                                                            token : token,
+                                                            role : result[0].user_role
+                                                        })
+                                                    } catch (error) {
+                                                        res.send({
+                                                            error : true,
+                                                            message : error
+                                                        })   
+                                                    }
+                                                } )
+                                                
                                             } catch (error) {
                                                 res.send({
                                                     error : true,
@@ -232,7 +249,7 @@ const FacebookLogin = (req, res) => {
                     if(err) throw err
                     if(result.length !== 0){
                         // user exist
-                        const token = jwt.sign({id:result[0].id},process.env.SECRET_KEY,{expiresIn:'30d'})
+                        const token = jwt.sign({id:result[0].id, role : result[0].user_role},process.env.SECRET_KEY,{expiresIn:'30d'})
                         res.send({
                             error : false,
                             message : 'Login succes',
@@ -250,11 +267,22 @@ const FacebookLogin = (req, res) => {
                                 db.query('insert into users set ?', {email : email, password : password, user_detail_id : resultDetail.insertId }, (err, resultUser) => {
                                     try {
                                         if(err) throw err
-                                        const token = jwt.sign({id:resultUser.insertId},process.env.SECRET_KEY,{expiresIn:'30d'})
-                                        res.send({
-                                            error : false,
-                                            message : 'Login with Facebook succes',
-                                            token : token
+                                        db.query('select * from users where id = ?', resultUser.insertId, (err, result) => {
+                                            try {
+                                                if(err) throw err
+                                                const token = jwt.sign({id:resultUser.insertId, role : result[0].user_role},process.env.SECRET_KEY,{expiresIn:'30d'})
+                                                res.send({
+                                                    error : false,
+                                                    message : 'Login with Facebook succes',
+                                                    token : token,
+                                                    role : result[0].user_role
+                                                })
+                                            } catch (error) {
+                                                res.send({
+                                                    error : true,
+                                                    message : error
+                                                })
+                                            }
                                         })
 
                                     } catch (error) {
